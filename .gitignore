@@ -167,3 +167,4 @@ cython_debug/
 /app/cache
 /app/old_cache
 /app/non_recurrent
+/app/exported_summaries
