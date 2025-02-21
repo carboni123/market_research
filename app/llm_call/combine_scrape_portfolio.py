@@ -5,10 +5,10 @@ def weekday():
     day_of_week = current_date.strftime('%A')
     return day_of_week
 
-def combine_portfolio_prompt(portfolio):
+def combine_portfolio_prompt(stock):
     prompt = f"""
 Today is {weekday()} {date.today()}.
-You are provided with a collection of aggregated web pages, including news articles, analyst reports, and financial updates, related to the stocks in the user's portfolio: {portfolio}. 
+You are provided with a collection of aggregated web pages, including news articles, analyst reports, and financial updates, related to the following stock in the user's portfolio: {stock}. 
 Your task is to combine this content into one comprehensive and coherent report. Please follow these guidelines:
 1. Prioritize Recent Information: Focus on the most up-to-date information and clearly note the dates of key events or data points to maintain relevance. If future dates are mentioned (e.g., upcoming earnings reports, product launches, or regulatory deadlines), identify these as future events and list them separately under a section titled ‘Upcoming Events’ for easy reference.
 2. Include All Key Details: Ensure that every significant fact, statistic, or unique insight from the sources is included. For example, this could include stock price changes, earnings results, analyst ratings, or major company announcements. Do not omit any relevant information that could impact the user's understanding of the portfolio.
