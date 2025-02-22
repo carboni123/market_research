@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, Response, render_template, request, redirect, url_for
 from user_database import UserDatabase
+import json
+from calendar_parser import CalendarParser
 
 app = Flask(__name__)
 db = UserDatabase()
@@ -68,6 +70,54 @@ def add_calendar():
         db.add_calendar_result(user_id, calendar_result)
         return redirect(url_for('view_calendar'))
     return render_template('add_calendar.html')
+
+@app.route('/download_summary/<int:summary_index>')
+def download_summary(summary_index):
+    # Using default user_id=1 for demonstration purposes
+    user_id = 1
+    summaries = db.get_summary_results(user_id)
+    if not summaries or summary_index < 0 or summary_index >= len(summaries):
+        return "Summary not found", 404
+
+    # Retrieve the JSON schema stored in the summary (assumed at index 2)
+    summary_text = summaries[summary_index][2]
+    try:
+        schema_data = json.loads(summary_text)
+    except Exception as e:
+        return f"Error parsing JSON schema: {e}", 400
+
+    # Generate Markdown using the MarkdownGenerator class
+    generator = CalendarParser(schema_data)
+    md_lines = generator.generate_markdown()
+    markdown_output = "\n".join(md_lines)
+
+    return Response(
+        markdown_output,
+        mimetype='text/plain',
+        headers={"Content-Disposition": "attachment; filename=summary.md"}
+    )
+
+@app.route('/download_calendar/<int:calendar_index>')
+def download_calendar(calendar_index):
+    # Using default user_id=1 for demonstration purposes
+    user_id = 1
+    calendars = db.get_calendar_results(user_id)
+    if not calendars or calendar_index < 0 or calendar_index >= len(calendars):
+        return "Calendar event not found", 404
+
+    # Retrieve the JSON schema stored in the calendar event (assumed at index 0)
+    calendar_text = calendars[calendar_index][0]
+    # Generate Markdown using the MarkdownGenerator class
+    generator = CalendarParser(calendar_text)
+    md_lines = generator.generate_markdown()
+    markdown_output = "\n".join(md_lines)
+
+    return Response(
+        markdown_output,
+        mimetype='text/plain',
+        headers={"Content-Disposition": "attachment; filename=calendar_event.md"}
+    )
+
 
 if __name__ == '__main__':
     app.run(debug=True)

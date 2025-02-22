@@ -1,5 +1,6 @@
 # api/__init__.py
 import os
+import re
 import importlib
 
 _api_registry = {}
@@ -59,3 +60,27 @@ def create_api_instance(api_type, api_key=None, api_dir=None):
     if not api_class:
         raise ValueError(f"Invalid API type: {api_type}")
     return api_class(api_key=api_key)
+
+def clean_json(text: str) -> str:
+    """
+    Remove invalid control characters from a JSON string.
+    This removes characters in the range U+0000 to U+001F.
+    """
+    return re.sub(r'[\x00-\x1F]+', '', text)
+
+def extract_json(markdown_response: str) -> str:
+    """
+    Extract JSON content from a Markdown response and clean it.
+
+    Parameters:
+        markdown_response (str): The Markdown response containing JSON in a code block.
+        
+    Returns:
+        str: Extracted and cleaned JSON content, or the cleaned input if no JSON is found.
+    """
+    # Regex to extract content within the JSON code block
+    match = re.search(r"```json\n(.*?)\n```", markdown_response, re.DOTALL)
+    if match:
+        json_content = match.group(1).strip()
+        return clean_json(json_content)
+    return clean_json(markdown_response)
