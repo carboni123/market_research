@@ -1,7 +1,7 @@
 from flask import Flask, Response, render_template, request, redirect, url_for
 from user_database import UserDatabase
 import json
-from calendar_parser import CalendarParser
+from calendar_parser import SummaryParser, CalendarParser
 
 app = Flask(__name__)
 db = UserDatabase()
@@ -81,13 +81,9 @@ def download_summary(summary_index):
 
     # Retrieve the JSON schema stored in the summary (assumed at index 2)
     summary_text = summaries[summary_index][2]
-    try:
-        schema_data = json.loads(summary_text)
-    except Exception as e:
-        return f"Error parsing JSON schema: {e}", 400
 
-    # Generate Markdown using the MarkdownGenerator class
-    generator = CalendarParser(schema_data)
+    # Generate Markdown using the SummaryParser class
+    generator = CalendarParser(summary_text)
     md_lines = generator.generate_markdown()
     markdown_output = "\n".join(md_lines)
 
@@ -107,7 +103,7 @@ def download_calendar(calendar_index):
 
     # Retrieve the JSON schema stored in the calendar event (assumed at index 0)
     calendar_text = calendars[calendar_index][0]
-    # Generate Markdown using the MarkdownGenerator class
+    # Generate Markdown using the CalendarParser class
     generator = CalendarParser(calendar_text)
     md_lines = generator.generate_markdown()
     markdown_output = "\n".join(md_lines)
