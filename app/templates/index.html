@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+    }
+    header, footer {
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      padding: 1em 0;
+    }
+    nav {
+      background-color: #444;
+      padding: 0.5em;
+    }
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    nav li {
+      display: inline;
+      margin: 0 1em;
+    }
+    nav a {
+      color: #fff;
+      text-decoration: none;
+    }
+    section {
+      max-width: 800px;
+      margin: 2em auto;
+      background: #fff;
+      padding: 1em 2em;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      color: #333;
+    }
+    ul {
+      padding-left: 1.5em;
+    }
+    li {
+      margin-bottom: 0.5em;
+    }
+    .summary-content, .calendar-content {
+      padding-left: 20px;
+      margin-top: 5px;
+      border-left: 2px solid #ccc;
+    }
+    .toggle-summary, .toggle-calendar {
+      cursor: pointer;
+      color: #007BFF;
+      text-decoration: underline;
+    }
+    small {
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Welcome to Your User Dashboard</h1>
+  </header>
+  
+  <nav>
+    <ul>
+      <li><a href="{{ url_for('add_user') }}">Add User</a></li>
+      <li><a href="{{ url_for('portfolio', user_id=1) }}">View Portfolio</a></li>
+      <li><a href="{{ url_for('view_summaries') }}">Summaries</a></li>
+      <li><a href="{{ url_for('view_calendar') }}">Calendar</a></li>
+    </ul>
+  </nav>
+  
+  <section>
+    <h2>Latest User Summaries</h2>
+    {% if summaries %}
+      <ul>
+        {% for summary in summaries %}
+          <li>
+            <!-- The link shows the created_at date as its text -->
+            <a href="javascript:void(0)" class="toggle-summary" data-target="summary-{{ loop.index }}">
+              {{ summary[3] }}
+            </a>
+            <!-- The summary content is hidden by default -->
+            <div id="summary-{{ loop.index }}" class="summary-content" style="display: none;">
+              <p><strong>{{ summary[0] }} ({{ summary[1] }}):</strong> {{ summary[2] }}</p>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No summaries available at the moment.</p>
+    {% endif %}
+  </section>
+  
+  <section>
+    <h2>Upcoming Calendar Events</h2>
+    {% if calendars %}
+      <ul>
+        {% for calendar in calendars %}
+          <li>
+            <!-- The link shows the created_at date as its text -->
+            <a href="javascript:void(0)" class="toggle-calendar" data-target="calendar-{{ loop.index }}">
+              {{ calendar[1] }}
+            </a>
+            <!-- The calendar event details are hidden by default -->
+            <div id="calendar-{{ loop.index }}" class="calendar-content" style="display: none;">
+              <p>{{ calendar[0] }}</p>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No calendar events available at the moment.</p>
+    {% endif %}
+  </section>
+  
+  <footer>
+    <p>&copy; 2025 Your Company Name. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // Toggle summary content when a summary link is clicked
+    document.querySelectorAll('.toggle-summary').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var targetId = this.getAttribute('data-target');
+        var contentDiv = document.getElementById(targetId);
+        contentDiv.style.display = (contentDiv.style.display === 'none') ? 'block' : 'none';
+      });
+    });
+    
+    // Toggle calendar content when a calendar link is clicked
+    document.querySelectorAll('.toggle-calendar').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var targetId = this.getAttribute('data-target');
+        var contentDiv = document.getElementById(targetId);
+        contentDiv.style.display = (contentDiv.style.display === 'none') ? 'block' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>
