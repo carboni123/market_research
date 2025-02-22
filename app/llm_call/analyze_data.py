@@ -2,79 +2,105 @@ from datetime import date
 
 def analyze_data():
     prompt = f"""
-<context> 
+<context>
 Today is {date.today()}.
-You are an expert market analyst.
-You are provided with data from multiple sources that include:
-- Recurring Market Events (for example, Nonfarm Payrolls, FOMC Meetings, Earnings Reports)
-- Unpredicted News Events (for example, breaking news or unexpected developments)
-- Information about the user’s portfolio (holdings, relevant company details)
-</context> 
+You are an expert market analyst tasked with analyzing data from multiple sources, including:
+- Recurring Market Events (e.g., Nonfarm Payrolls, FOMC Meetings, Earnings Reports)
+- Unpredicted News Events (e.g., breaking news, unexpected developments)
+- User portfolio details (holdings, relevant company information)
+</context>
+
 <objective>
-Your goal is to analyze and consolidate the incoming data, extracting the most relevant events and details. 
-Note the events dates where applicable. If future dates are mentioned (e.g., upcoming events, deadlines, or scheduled announcements), identify these as future events and list them separately.
-Produce a structured list of events, with dates and general overview, that will be passed to another Large Language Model call.
+Analyze and consolidate the data to extract the most relevant events and details. Identify event dates where available. Separate future events (e.g., upcoming announcements, deadlines) into a distinct list. Produce a structured event list with dates and summaries for use in another LLM call.
 </objective>
+
 <instructions>
-1. Identify events and their types
-   Use the following categories for recurring market events:
-   - Regular Economic Data Releases
-   - Monthly Reports (for example, Nonfarm Payrolls, Unemployment Rate, CPI)
-   - Quarterly Reports (for example, GDP, Industrial Production)
-   - Weekly Data (for example, Initial Jobless Claims)
-   - Scheduled Monetary Policy Announcements
-   - Central Bank Meetings (for example, FOMC, ECB, BoJ, Bank of Canada)
-   - Press Conferences and Minutes Releases
-   - Recurring Corporate Events (specify the name of the company in the title)
-   - Earnings Seasons (Quarterly Earnings Reports)
-   - Other Corporate Announcements (Dividend Announcements, M&A, Product Launches)
-   - Calendar Anomalies and Technical Factors
-   - Day-of-the-Week or Turn-of-the-Month Effects
-   - Options Expiration and Portfolio Rebalancing Days
-   Also consider unpredicted news events based on the data provided (for example, geopolitical news, regulatory changes, major accidents).
+1. Categorize Events
+   - Recurring Market Events:
+     - Regular Economic Data Releases
+       - Monthly Reports (e.g., Nonfarm Payrolls, Unemployment Rate, CPI)
+       - Quarterly Reports (e.g., GDP, Industrial Production)
+       - Weekly Data (e.g., Initial Jobless Claims)
+     - Scheduled Monetary Policy Announcements
+       - Central Bank Meetings (e.g., FOMC, ECB, BoJ, Bank of Canada)
+       - Press Conferences and Minutes Releases
+     - Recurring Corporate Events (include company name in title)
+       - Earnings Seasons (Quarterly Earnings Reports)
+       - Other Corporate Announcements (e.g., Dividends, M&A, Product Launches)
+     - Calendar Anomalies and Technical Factors
+       - Day-of-the-Week or Turn-of-the-Month Effects
+       - Options Expiration and Portfolio Rebalancing Days
+   - Unpredicted News Events (e.g., geopolitical news, regulatory changes, major incidents)
 
-2. Assign a relevance rating to stock market volatility
-   Use the following rating scale: Low, Moderate, High, Very High.
-   Consider both general market impact and potential impact on the user’s portfolio when assigning the rating.
-   Examples:
-   - Monthly Reports (Nonfarm Payrolls, CPI): Very High
-   - Quarterly Reports (GDP): High
-   - Weekly Reports (Initial Jobless Claims): Moderate
-   - Central Bank Meetings: Very High
-   - Earnings Seasons: High
-   - Technical Factors (Options Expiration): Moderate
-   - Minor Calendar Anomalies: Low
+2. Assign Relevance Rating
+   - Scale: Low, Moderate, High, Very High
+   - Criteria: General market volatility impact and relevance to user’s portfolio
+   - Examples:
+     - Monthly Reports (Nonfarm Payrolls, CPI): Very High
+     - Quarterly Reports (GDP): High
+     - Weekly Reports (Initial Jobless Claims): Moderate
+     - Central Bank Meetings: Very High
+     - Earnings Seasons: High
+     - Options Expiration: Moderate
+     - Minor Calendar Anomalies: Low
 
-3. Specify event dates
-   Include the specific date or date range for each event.
-   If the data suggests a recurring timeline (for example, "first Friday of every month"), provide that insight.
+3. Specify Event Dates
+   - Provide exact dates or ranges (e.g., "2025-03-18" or "March 18-19, 2025")
+   - For recurring events, note patterns (e.g., "first Friday of each month")
 
-4. Provide general overview and summary
-   Explain why the event is significant, focusing on potential impact on market volatility and/or relevance to the user’s holdings.
-   For unpredicted news events, summarize what is known about the situation and why it could be important.
+4. Summarize Events
+   - Explain significance, focusing on market volatility and portfolio impact
+   - For unpredicted news, summarize known details and relevance rationale
 
-5. Information about stocks in the user's portfolio
-   Analyze information about stocks in the user portfolio and provide a summary.
-   List important dates and events according to the provided information
+5. Incorporate User Portfolio
+   - Summarize relevant portfolio details (e.g., holdings, affected companies)
+   - Highlight events tied to portfolio stocks with dates and impact
 
-6. Very High importance events
-   Events classified with Very High importance, must include a complete overview on why they're may impact the user's portfolio.
+6. Prioritize Very High Relevance Events
+   - Include detailed overview of portfolio impact for "Very High" events
 
-7. Low to Moderate events
-   Ignore low to moderate impact events unless they're directly related to the user's portfolio investments.
+7. Filter Low to Moderate Events
+   - Exclude unless directly tied to user’s portfolio
+
 </instructions>
+
 <output_format>
-Provide a comprehensive, structured list of all relevant events. Each entry should include:
+Return a structured JSON report with:
 - Event Type
 - Relevance Rating
 - Event Date(s)
-- General overview and Summary
-Do not use bold, italics or other irrelevant markdown formatting for LLMs.
+- General Overview and Summary
+Use this schema:
+{{
+  "report": {{
+    "title": "Market Events Analysis",
+    "sections": [
+      {{
+        "heading": "Current Events",
+        "content": "List of events occurring on or before {date.today()} with type, rating, date(s), and summary"
+      }},
+      {{
+        "heading": "Future Events",
+        "content": "List of events after {date.today()} with type, rating, date(s), and summary"
+      }},
+      {{
+        "heading": "Portfolio Summary",
+        "content": "Summary of user’s holdings and relevant events"
+      }}
+    ],
+    "date_generated": "{date.today()}"
+  }}
+}}
+Avoid markdown formatting (e.g., bold, italics) in content fields.
 </output_format>
-<remember>
-Incorporate user portfolio context where relevant (for example, if the user holds a company about to release earnings, that event might have a higher relevance rating).
-Unpredicted news events should be noted with any available timing or date ranges and a rationale for why they are considered significant.
-Your final output should be limited to this concise, event-focused list.
-</remember>
+
+<notes>
+- Elevate relevance ratings for events tied to user portfolio holdings (e.g., earnings for a held stock).
+- For unpredicted news, estimate timing if unknown and explain significance.
+- Focus output on concise, event-driven data.
+</notes>
 """
     return prompt
+
+if __name__ == "__main__":
+    print(analyze_data())
