@@ -32,7 +32,8 @@ def call_scrape_api(
     params = {
         "q": query,
         "depth": depth,
-        "clear_cache": clear_cache,
+        "cache_type": "dynamic",
+        "clear_cache": clear_cache
     }
 
     # Make a POST request to initiate the scrape task.

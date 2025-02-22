@@ -21,7 +21,7 @@ os.makedirs("analysis", exist_ok=True)
 google_llm_api = create_api_instance("google")  # For 2M tokens context size
 
 # Global rate-limiting variables for scrape API calls
-scrape_semaphore = asyncio.Semaphore(2)  # Maximum 2 concurrent calls
+scrape_semaphore = asyncio.Semaphore(1)  # Maximum 2 concurrent calls
 rate_limit_lock = asyncio.Lock()
 last_scrape_call = 0.0  # Global timestamp for the last scrape call
 
@@ -112,8 +112,6 @@ async def async_scrape_api(keyword):
             if wait_time > 0:
                 logging.info(f"Rate limiting: waiting {wait_time:.2f} seconds for keyword '{keyword}'")
                 await asyncio.sleep(wait_time)
-            last_scrape_call = loop.time()
-        loop = asyncio.get_running_loop()
         try:
             result = await asyncio.wait_for(
                 loop.run_in_executor(None, call_scrape_api, keyword),
@@ -123,6 +121,10 @@ async def async_scrape_api(keyword):
         except Exception as e:
             logging.error(f"Error during scrape call for {keyword}: {e}")
             return "Error: Unable to scrape data."
+        finally:
+            # Update last_scrape_call after the API call completes
+            async with rate_limit_lock:
+                last_scrape_call = asyncio.get_running_loop().time()
 
 async def generate_summary(summary_type, keyword, scrape_response):
     """
@@ -156,9 +158,16 @@ async def process_keyword(summary_type, keyword):
     cached = cache_manager.check_cache(summary_type, keyword)
     if cached:
         return cached
+
     scrape_response = await async_scrape_api(keyword)
+    # Check if the scrape_response is empty or indicates an error
+    if not scrape_response or (isinstance(scrape_response, str) and scrape_response.startswith("Error:")):
+        logging.error(f"Scrape API failed for keyword '{keyword}'. Skipping summary generation.")
+        return f"Error: Scrape API failed for '{keyword}'. No summary generated."
+    
     summary = await generate_summary(summary_type, keyword, scrape_response)
     return summary
+
 
 async def analyze_summaries(summaries):
     """
