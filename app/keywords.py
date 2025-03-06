@@ -20,49 +20,55 @@ from typing import List, Dict, Any
 # -----------------------------------------------------------------------------
 # Pre-defined Keywords for Market Events
 # -----------------------------------------------------------------------------
-MARKET_KEYWORDS: List[str] = [
-    "nonfarm payrolls latest",
-    "FOMC meetings calendar",
-    "earnings event calendar",
-    "economic data releases schedule",
-    "unemployment rate US latest",
-    "Consumer Price Index (CPI) latest",
-    "quarterly reports schedule US stock market",
-    "US GDP update",
-    "industrial production update",
-    "weekly financial market data",
-    "initial jobless claims latest",
-    "monetary policy announcements",
-    "central bank meetings calendar",
-    "breaking press conference news",
-    "US stock market dividend announcements news",
-    "M&A deals",
-    "major companies product launches news",
-    "options expiration this week",
-    "geopolitical news",
-    "regulatory changes news",
-    "financial news",
-    "market volatility update",
-    "Fed monetary policy news",
-    "European Central Bank (ECB) monetary policy news",
-    "BoJ monetary policy news",
-    "interest rate update",
-    "quantitative easing news",
-    "Personal Consumption Expenditures (PCE) update",
-    "US manufacturing data",
-    "China manufacturing data",
-    "US retail sales data",
-    "US housing starts data",
-    "US consumer confidence index",
-    "stock split announcements",
-    "US election news",
-    "US political uncertainty news",
-    "tariff news",
-    "trade dispute news",
-    "war updates",
-    "terrorist news",
-    "sanction news"
-]
+MARKET_KEYWORDS = {
+    "daily": [
+        "Fed monetary policy news",
+        "European Central Bank (ECB) monetary policy news",
+        "breaking press conference news",
+        "geopolitical news",
+        "regulatory changes news",
+        "financial news",
+        "market volatility update",
+        "interest rate update",
+        "quantitative easing news",
+        "US political uncertainty news",
+        "tariff news",
+        "trade dispute news",
+        "war updates"
+        "M&A deals",
+        "major companies product launches news",
+        "stock split announcements",
+        "US election news",
+        "terrorist economy news",
+        "US sanctions news"
+    ],
+    "weekly": [
+        "FOMC meetings calendar",
+        "central bank meetings calendar",
+        "weekly financial market data",
+        "initial jobless claims latest",
+        "options expiration this week"
+        "nonfarm payrolls latest",
+        "economic data releases schedule",
+        "unemployment rate US latest",
+        "Consumer Price Index (CPI) latest",
+        "industrial production update",
+        "Personal Consumption Expenditures (PCE) update",
+        "US manufacturing data",
+        "China manufacturing data",
+        "US retail sales data",
+        "US housing starts data",
+        "US consumer confidence index",
+        "US stock market dividend announcements news",
+    ],
+    "monthly": [
+        "earnings event calendar",
+        "quarterly reports schedule US stock market",
+        "US GDP update",  
+        "monetary policy announcements",
+        "BoJ monetary policy news"
+    ],
+}
 
 # -----------------------------------------------------------------------------
 # Helper Functions

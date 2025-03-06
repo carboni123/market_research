@@ -1,3 +1,4 @@
+# main.py
 import os
 import asyncio
 import sqlite3
@@ -50,9 +51,6 @@ class CacheManager:
         Returns a cached summary if it exists and hasn’t expired based on:
           1. The stored date being today's date.
           2. The elapsed hours since storage being less than CACHE_EXPIRATION_HOURS.
-          
-        For example, a cache entry from 2025-02-20 will expire on 2025-02-21,
-        even if less than 24 hours have passed.
         """
         self.cursor.execute('''
             SELECT summary, timestamp FROM summaries
@@ -98,7 +96,7 @@ class CacheManager:
 cache_manager = CacheManager()
 
 # --- Asynchronous Functions ---
-async def async_scrape_api(keyword):
+async def async_scrape_api(keyword, cache_type=None):
     """
     Wraps call_scrape_api to enforce a maximum of 2 concurrent calls and at least 1 second
     between calls. Includes a timeout in case the scrape API hangs.
@@ -114,8 +112,8 @@ async def async_scrape_api(keyword):
                 await asyncio.sleep(wait_time)
         try:
             result = await asyncio.wait_for(
-                loop.run_in_executor(None, call_scrape_api, keyword),
-                timeout=30
+                loop.run_in_executor(None, lambda: call_scrape_api(keyword, cache_type=cache_type)),
+                timeout=300
             )
             return result
         except Exception as e:
@@ -125,6 +123,7 @@ async def async_scrape_api(keyword):
             # Update last_scrape_call after the API call completes
             async with rate_limit_lock:
                 last_scrape_call = asyncio.get_running_loop().time()
+
 
 async def generate_summary(summary_type, keyword, scrape_response):
     """
@@ -151,23 +150,25 @@ async def generate_summary(summary_type, keyword, scrape_response):
     cache_manager.update_cache(summary_type, keyword, response)
     return response
 
-async def process_keyword(summary_type, keyword):
+async def process_keyword(summary_type, keyword, cache_type=None):
     """
     Check the cache for a given keyword and process it if not cached.
+    Raises an exception if the scrape API fails, stopping the keyword processing loop.
     """
     cached = cache_manager.check_cache(summary_type, keyword)
     if cached:
         return cached
 
-    scrape_response = await async_scrape_api(keyword)
-    # Check if the scrape_response is empty or indicates an error
-    if not scrape_response or (isinstance(scrape_response, str) and scrape_response.startswith("Error:")):
-        logging.error(f"Scrape API failed for keyword '{keyword}'. Skipping summary generation.")
-        return f"Error: Scrape API failed for '{keyword}'. No summary generated."
-    
-    summary = await generate_summary(summary_type, keyword, scrape_response)
-    return summary
-
+    scrape_response = await async_scrape_api(keyword, cache_type)
+    if isinstance(scrape_response, str) and scrape_response.startswith("Error:"):
+        raise RuntimeError(f"Scrape API failed for keyword '{keyword}': {scrape_response}")
+    elif not scrape_response:  # Handle None or empty list/dict
+        summary = "No data found for this keyword."
+        cache_manager.update_cache(summary_type, keyword, summary)
+        return summary
+    else:
+        summary = await generate_summary(summary_type, keyword, scrape_response)
+        return summary
 
 async def analyze_summaries(summaries):
     """
@@ -219,12 +220,19 @@ async def create_calendar_from_analysis(analysis):
 async def main():
     tasks = []
     
-    # Process market keywords concurrently
-    for keyword in MARKET_KEYWORDS:
+    # Process market keywords concurrently for daily events with "dynamic" cache
+    for keyword in MARKET_KEYWORDS["daily"]:
         logging.info(f"Processing market keyword: {keyword}")
-        tasks.append(process_keyword("market", keyword))
-    
-    # Process portfolio keywords concurrently
+        tasks.append(process_keyword("market", keyword, cache_type="dynamic"))
+
+    # Process market keywords for weekly and monthly events with "static" cache.
+    # Assuming MARKET_KEYWORDS is a dict with lists for "weekly" and "monthly".
+    for period in ["weekly", "monthly"]:
+        for keyword in MARKET_KEYWORDS[period]:
+            logging.info(f"Processing market keyword: {keyword}")
+            tasks.append(process_keyword("market", keyword, cache_type="static"))
+
+    # Process portfolio keywords concurrently (using default cache_type)
     for keyword in extract_portfolio_keywords():
         logging.info(f"Processing portfolio keyword: {keyword}")
         tasks.append(process_keyword("portfolio", keyword))
