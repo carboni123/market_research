@@ -131,52 +131,68 @@ class SummaryParser(MarkdownParser):
         super().__init__(data)
 
     def generate_markdown(self):
-        """Generate Markdown from the JSON data."""
+        lines = []
+
+        # If data is a string, return it as is
         if isinstance(self.data, str):
             return [self.data]
-        lines = []
-        if "title" in self.data:
-            lines.append(f"# {self.data['title']}\n")
-        for section in ["monthlyCalendar", "monthlyPastEventsSummary", "monthlyUpcomingEventsSummary", "weeklyHighlights", "dailyHighlights"]:
-            if section in self.data:
-                section_title = format_key(section)
-                lines.append(f"## {section_title}\n")
-                lines.extend(self.generate_data_markdown(self.data[section]))
+
+        # Determine the data to use
+        data_to_use = None
+        if isinstance(self.data, dict):
+            # Case 1: Data has 'title' and 'sections' directly
+            if 'title' in self.data and 'sections' in self.data:
+                data_to_use = self.data
+            # Case 2: Data is wrapped in a single-key dictionary
+            elif len(self.data) == 1:
+                inner_data = list(self.data.values())[0]
+                if isinstance(inner_data, dict) and 'title' in inner_data and 'sections' in inner_data:
+                    data_to_use = inner_data
+
+        # Process the data if it matches the expected structure
+        if data_to_use:
+            title = data_to_use['title']
+            lines.append(f"# {title}\n")
+            sections = data_to_use['sections']
+            for section in sections:
+                heading = section.get('heading', 'Section')
+                lines.append(f"## {heading}\n")
+                content = section.get('content', '')
+                if isinstance(content, list) and content and isinstance(content[0], dict):
+                    for event in content:
+                        event_type = event.get('Event Type', 'Event')
+                        lines.append(f"### {event_type}\n")
+                        for key, value in event.items():
+                            if key != 'Event Type':
+                                formatted_key = key.replace('_', ' ').title()
+                                lines.append(f"- **{formatted_key}**: {value}")
+                        lines.append("")
+                else:
+                    lines.append(f"{content}\n")
                 lines.append("")
+            date_generated = data_to_use.get('date_generated', '')
+            if date_generated:
+                lines.append(f"**Date Generated**: {date_generated}\n")
+        else:
+            # Fallback for unrecognized data
+            lines.append("# Summary\n")
+            lines.extend(self.generate_data_markdown(self.data, indent=0))
+
         return lines
 
     def generate_data_markdown(self, obj, indent=0):
-        """Generate Markdown lines from JSON data with formatted keys."""
+        # Existing method to handle fallback case
         lines = []
         indent_str = "  " * indent
-
         if isinstance(obj, dict):
             for key, value in obj.items():
-                formatted_key = format_key(key)
-                lines.append(f"{indent_str}- **{formatted_key}**:")
-                lines.extend(self.generate_data_markdown(value, indent + 1))
+                formatted_key = key.replace('_', ' ').title()
+                lines.append(f"{indent_str}- **{formatted_key}**: {value}")
         elif isinstance(obj, list):
-            if all(isinstance(item, dict) and "date" in item and "events" in item for item in obj):
-                # Handle arrays of date-based events (e.g., in weeklyHighlights)
-                for item in obj:
-                    date = item.get("date", "Unknown Date")
-                    lines.append(f"{indent_str}### {date}\n")
-                    events = item.get("events", [])
-                    if events and isinstance(events[0], dict):
-                        lines.extend(self.generate_table(events, indent + 1))
-                    else:
-                        lines.extend(self.generate_data_markdown(events, indent + 1))
-            elif obj and isinstance(obj[0], dict):
-                # Handle uniform lists as tables
-                lines.extend(self.generate_table(obj, indent))
-            else:
-                # Fallback for simple lists
-                for item in obj:
-                    lines.extend(self.generate_data_markdown(item, indent))
+            for item in obj:
+                lines.extend(self.generate_data_markdown(item, indent))
         else:
-            # Scalar values
             lines.append(f"{indent_str}{obj}")
-
         return lines
     
 def write_markdown(content, output_file):

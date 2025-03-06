@@ -83,7 +83,7 @@ def download_summary(summary_index):
     summary_text = summaries[summary_index][2]
 
     # Generate Markdown using the SummaryParser class
-    generator = CalendarParser(summary_text)
+    generator = SummaryParser(summary_text)
     md_lines = generator.generate_markdown()
     markdown_output = "\n".join(md_lines)
 
