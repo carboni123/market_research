@@ -29,7 +29,7 @@ def _discover_apis(api_dir):
     for filename in os.listdir(api_dir):
         if filename.endswith('.py') and filename != '__init__.py' and filename != "api.py":
             module_name = filename[:-3] # remove .py
-            module_path = f"api.{module_name}"
+            module_path = f"market_research.api.{module_name}"
             try:
               importlib.import_module(module_path)
             except ModuleNotFoundError as e:

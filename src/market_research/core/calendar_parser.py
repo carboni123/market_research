@@ -1,4 +1,4 @@
-# calendar_parser.py
+# src/market_research/core/calendar_parser.py
 import argparse
 import json
 import re

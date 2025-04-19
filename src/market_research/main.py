@@ -7,13 +7,13 @@ from datetime import datetime, date
 from typing import List, Dict, Any # Added typing imports
 
 # Local Imports
-from keywords import extract_portfolio_keywords, MARKET_KEYWORDS
-from llm_call import combine_scrape_prompt, combine_portfolio_prompt, analyze_data, create_calendar
+from core import extract_portfolio_keywords, MARKET_KEYWORDS
+from prompts import combine_scrape_prompt, combine_portfolio_prompt, analyze_data, create_calendar
 # --- API and Tool Factory Imports ---
 from api import OpenAIAPI  # Import the correct class
 from api.api_tool_factory import ApiToolFactory # Import the factory
 # --- User Database Import ---
-from user_database import UserDatabase
+from market_research.core.user_database import UserDatabase
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

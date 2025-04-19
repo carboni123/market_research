@@ -1,20 +1,29 @@
-# user_database.py
+# src/market_research/core/user_database.py
 import sqlite3
 import logging
+import os
 from datetime import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 class UserDatabase:
-    def __init__(self, db_path="user_data.db"):
+    def __init__(self, db_path="user_data.db"): # Keep default for standalone use? Or require path? Let's require it implicitly via main.py setting it.
         self.db_path = db_path
-        # Connect to the database (or create it if it doesn't exist)
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        # Enable foreign key constraints
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.cursor = self.conn.cursor()
-        self.create_tables()
+        # Ensure parent directory exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        try:
+            # Connect to the database (or create it if it doesn't exist)
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            # Enable foreign key constraints
+            self.conn.execute("PRAGMA foreign_keys = ON")
+            self.cursor = self.conn.cursor()
+            self.create_tables()
+            logging.info(f"UserDatabase connected to {self.db_path}")
+        except sqlite3.Error as e:
+            logging.error(f"Failed to connect to database at {self.db_path}: {e}")
+            # Optionally raise the error or handle it to prevent app failure
+            raise # Reraise the exception to signal connection failure
     
     def create_tables(self):
         # Create the users table to store account information
@@ -197,12 +206,23 @@ class UserDatabase:
         return self.cursor.fetchone()
     
     def close(self):
-        self.conn.close()
+        if self.conn:
+            self.conn.close()
+            logging.info(f"UserDatabase connection closed for {self.db_path}")
 
 # --- Example Usage ---
 if __name__ == "__main__":
+    # Determine a default path for example usage
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    except NameError:
+        project_root = os.path.abspath("../..")
+
+    EXAMPLE_DB_PATH = os.path.join(project_root, "..", "data", "user_data_example.db")
+    print(f"Using example database: {EXAMPLE_DB_PATH}")
+
     # Instantiate the user database
-    user_db = UserDatabase()
+    user_db = UserDatabase(db_path=EXAMPLE_DB_PATH)
     
     # Add a user or retrieve existing one
     user_id = user_db.add_user("alice", "alice@example.com", "hashedpassword123")

@@ -69,17 +69,3 @@ class API(ABC):
         if not api_key:
             raise ValueError(f"{api_env} not found in environment variables.")
         return api_key
-
-    @abstractmethod
-    async def process_text(self, prompt, **kwargs):
-        """
-        Abstract method to generate text from a given prompt.
-
-        Args:
-            prompt (str): The input prompt for text generation.
-            **kwargs: Additional keyword arguments for the API call.
-
-        Returns:
-            str: The generated text.
-        """
-        pass

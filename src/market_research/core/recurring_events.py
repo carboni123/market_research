@@ -1,3 +1,4 @@
+# src/market_research/core/recurring_events.py
 """
 Keywords related to the following recurring market events:
 Regular Economic Data Releases

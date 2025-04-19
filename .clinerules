@@ -17,6 +17,21 @@ Create ADRs in `/docs/adr` for:
 
 Follow template in `/docs/adr/template.md`
 
+
+## Directory Structure Convention
+
+Use a layered architecture:
+```
+src/
+  market_research/  
+    api/
+    core/
+    prompts/            
+tests/
+docs/
+scripts/             # Utility and maintenance scripts
+```
+
 ## Code Style & Patterns
 
 - Generate API clients using OpenAPI Generator for Python

@@ -1,0 +1,9 @@
+# Core application
+openai
+python-dotenv
+Flask 
+# Testing
+pytest
+pytest-asyncio
+pytest-mock
+

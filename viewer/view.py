@@ -1,7 +1,9 @@
-from flask import Flask, Response, render_template, request, redirect, url_for
-from user_database import UserDatabase
+# viewer/view.py
 import json
-from calendar_parser import SummaryParser, CalendarParser
+from flask import Flask, Response, render_template, request, redirect, url_for
+
+from market_research.core.user_database import UserDatabase
+from market_research.core.calendar_parser import SummaryParser, CalendarParser
 
 app = Flask(__name__)
 db = UserDatabase()
