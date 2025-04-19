@@ -1,26 +1,31 @@
+# llm_call/combine_scrape_general.py
 from datetime import date
 
 def combine_scrape_prompt(query):
     """
-    Generates a prompt for synthesizing aggregated web pages into a comprehensive report.
-
-    Parameters:
-        query (str): The keyword or topic based on which the web pages were aggregated.
-
-    Returns:
-        str: A formatted prompt that instructs an LLM to synthesize the aggregated data.
+    Generates a prompt instructing the LLM to perform a web search for a query
+    and synthesize the results into a comprehensive report.
     """
     prompt = f"""
-Today is {date.today()}.
-You are provided with a collection of aggregated web pages from various news sources containing information on {query}. Your task is to synthesize this content into one comprehensive and coherent report. Please follow these guidelines:
+<objective>
+Today is {date.today()}. Your primary task is to perform a web search based on the user's query: "{query}".
+After retrieving the search results, synthesize the information into a comprehensive and coherent report.
+</objective>
 
-1. Keep Track of Dates: Prioritize the most recent information and note dates where applicable to maintain relevance. If future dates are mentioned (e.g., upcoming events, deadlines, or scheduled announcements), identify these as future events and list them separately under a section like ‘Upcoming Events’ for easy reference.
-2. Preserve Details: Include every key fact or unique insight from the sources, ensuring no relevant information is omitted.
-3. Structured Report: Organize the report into clear sections or headings based on themes or topics (e.g., 'Overview,' 'Key Findings,' 'Supporting Details,' 'Conclusion'). For evolving stories, consider a chronological structure to show the progression of events.
-4. Conciseness with Completeness: Compress information to avoid redundancy. For less critical details, provide brief summaries, but ensure key events, statements, or data points are presented in full.
-5. Balanced Integration: Merge similar points from different sources into a coherent narrative, noting any variations or nuances. If there are conflicting reports or discrepancies, highlight these differences and, if possible, indicate which sources might be more reliable based on reputation or recency.
-6. Unbiased Tone: Present the information factually and objectively, without favoring one source over another.
+<instructions>
+1.  **Perform Web Search:** Use the available web search tool to find relevant and up-to-date information regarding "{query}". Prioritize reputable news sources, official announcements, and reliable financial data providers.
+2.  **Synthesize Results:** Combine the information gathered from the search results into a single report.
+3.  **Track Dates:** Prioritize the most recent information. Note specific dates (e.g., "reported on YYYY-MM-DD", "event scheduled for YYYY-MM-DD") where available. Identify and list any future events or deadlines mentioned under a distinct 'Upcoming Events' section.
+4.  **Preserve Key Details:** Include all significant facts, figures, statements, or unique insights found in the search results. Do not omit critical information.
+5.  **Structure the Report:** Organize the report logically. Use clear headings (e.g., 'Overview', 'Key Findings', 'Recent Developments', 'Upcoming Events', 'Market Impact'). A chronological structure might be suitable for evolving stories.
+6.  **Conciseness & Completeness:** Be concise but ensure all crucial information is covered. Summarize minor details where appropriate but present key data points fully. Avoid redundancy.
+7.  **Attribute (If Possible):** While you don't need to list every source URL, mentioning the source type (e.g., "According to financial news outlets...", "An analyst report stated...") can add context if significant discrepancies exist.
+8.  **Handle Conflicts:** If search results present conflicting information, acknowledge the discrepancies (e.g., "Reports differ on the exact figure...").
+9.  **Maintain Neutrality:** Present information factually and objectively. Avoid speculation or biased language.
+</instructions>
 
-Using these instructions, please generate a report that accurately reflects the aggregated data.
+<output_format>
+Generate a well-structured report based on the synthesis of the web search results for "{query}". Use clear language and headings. Ensure the 'Upcoming Events' section is clearly marked if applicable.
+</output_format>
 """
     return prompt

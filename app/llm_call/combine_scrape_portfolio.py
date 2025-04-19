@@ -1,3 +1,4 @@
+# llm_call/combine_scrape_portfolio.py
 from datetime import datetime, date
 
 def weekday():
@@ -5,22 +6,35 @@ def weekday():
     day_of_week = current_date.strftime('%A')
     return day_of_week
 
-def combine_portfolio_prompt(stock):
+def combine_portfolio_prompt(stock_info): # Renamed parameter for clarity
+    """
+    Generates a prompt instructing the LLM to perform a web search for specific stock information
+    and synthesize the results relevant to a user's portfolio.
+    """
     prompt = f"""
-Today is {weekday()} {date.today()}.
-You are provided with a collection of aggregated web pages, including news articles, analyst reports, and financial updates, related to the following stock in the user's portfolio: {stock}. 
-Your task is to combine this content into one comprehensive and coherent report. Please follow these guidelines:
-1. Prioritize Recent Information: Focus on the most up-to-date information and clearly note the dates of key events or data points to maintain relevance. If future dates are mentioned (e.g., upcoming earnings reports, product launches, or regulatory deadlines), identify these as future events and list them separately under a section titled ‘Upcoming Events’ for easy reference.
-2. Include All Key Details: Ensure that every significant fact, statistic, or unique insight from the sources is included. For example, this could include stock price changes, earnings results, analyst ratings, or major company announcements. Do not omit any relevant information that could impact the user's understanding of the portfolio.
-3. Organize the Report Clearly: Structure the report into sections based on themes or topics. Suggested sections include:
-   - Overview: A brief summary of the current state of the portfolio, including overall performance and major trends.
-   - Key Findings: Highlight the most important insights, such as significant stock movements, changes in analyst sentiment, or major news events.
-   - Supporting Details: Provide additional context or data that supports the key findings, such as historical performance, market comparisons, or detailed financial metrics.
-   - Conclusion: Offer a final summary or outlook based on the information presented.
-   For evolving stories (e.g., ongoing mergers, legal disputes, or product developments), use a chronological structure to show the progression of events.
-4. Be Concise but Complete: Avoid redundancy by summarizing less critical details. For example, if multiple sources report the same event, provide a single, clear description rather than repeating similar information. Use bullet points or short paragraphs to present information clearly while ensuring all key events, statements, or data points are fully included.
-5. Integrate Information Thoughtfully: Merge similar points from different sources into a coherent narrative. If there are conflicting reports or discrepancies (e.g., differing analyst opinions or contradictory data), highlight these differences and, if possible, indicate which sources might be more reliable based on their reputation or recency.
-6. Maintain an Unbiased Tone: Present the information factually and objectively, without favoring one source over another. Avoid speculative language or personal opinions.
-Using these instructions, please generate a report that accurately reflects the aggregated data.
+<objective>
+Today is {weekday()} {date.today()}. Your primary task is to perform a web search focused on the following stock information relevant to the user's portfolio: "{stock_info}".
+This might include recent news, earnings reports, analyst ratings, price movements, or upcoming events related to this specific stock/security. After retrieving the search results, synthesize the information into a comprehensive report tailored for a portfolio holder.
+</objective>
+
+<instructions>
+1.  **Perform Focused Web Search:** Use the available web search tool to find the latest and most relevant information specifically about "{stock_info}". Look for news articles, press releases, financial data, analyst updates, and event calendars.
+2.  **Synthesize Portfolio-Relevant Results:** Combine the gathered information into a single report focusing on aspects important to an investor holding this stock.
+3.  **Prioritize Recent & Dated Info:** Focus on the most current updates. Clearly state dates for news, reports, or events (e.g., "Earnings reported on YYYY-MM-DD", "Analyst upgrade dated YYYY-MM-DD"). Create a distinct 'Upcoming Events' section for future dates (e.g., next earnings call, ex-dividend date, product launch).
+4.  **Include Key Financial & Event Details:** Ensure significant data points are included: stock price changes (mention timeframe if available), earnings results (EPS, revenue vs. estimates), analyst rating changes (upgrade/downgrade, price targets), major company announcements (M&A, partnerships, regulatory news), dividend information.
+5.  **Structure for Investors:** Organize the report logically for an investor. Suggested sections:
+    *   `Recent Performance`: Key price movements, volume changes.
+    *   `Key News & Developments`: Summaries of significant recent news.
+    *   `Earnings & Financials`: Latest earnings summary, relevant financial metrics.
+    *   `Analyst Sentiment`: Recent changes in analyst ratings or price targets.
+    *   `Upcoming Events`: Clearly list dates and descriptions of future events.
+6.  **Concise yet Complete:** Avoid jargon where possible, be clear and concise. Summarize background information but provide specifics on recent data and events.
+7.  **Attribute Key Changes (If Needed):** Mentioning the source of a significant change (e.g., "Rating upgrade by [Firm Name]...") can be useful.
+8.  **Neutral Tone:** Present findings factually and objectively. Avoid investment advice or speculation.
+</instructions>
+
+<output_format>
+Generate a well-structured report synthesizing the web search results for "{stock_info}", focusing on information relevant to an investor. Ensure an 'Upcoming Events' section is included if applicable.
+</output_format>
 """
     return prompt

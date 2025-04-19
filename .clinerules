@@ -1,0 +1,36 @@
+# Project Guidelines
+
+## Documentation Requirements
+
+- Update relevant documentation in `/docs` when modifying features
+- Keep `README.md` in sync with new capabilities
+- Maintain changelog entries in `CHANGELOG.md`
+
+## Architecture Decision Records
+
+Create ADRs in `/docs/adr` for:
+
+- Major dependency changes
+- Architectural pattern changes
+- New integration patterns
+- Database schema changes
+
+Follow template in `/docs/adr/template.md`
+
+## Code Style & Patterns
+
+- Generate API clients using OpenAPI Generator for Python
+- Use the `requests` library template for HTTP clients
+- Place generated code in `src/generated`
+- Prefer composition over inheritance
+- Use the repository pattern for data access (e.g., in `src/repository`)
+- Follow error handling patterns in `src/utils/errors.py`
+- Adhere to PEP 8 style guide and format code with Black
+- Include type hints for all public functions and methods
+
+## Testing Standards
+
+- Unit tests required for business logic using pytest
+- Integration tests for API endpoints in `tests/integration`
+- E2E tests for critical user flows in `tests/e2e`
+
