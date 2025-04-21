@@ -7,7 +7,7 @@ This project automates the process of gathering, analyzing, and summarizing mark
 ## Features
 
 *   **Automated Data Gathering:** Fetches market news and data using API calls based on general market keywords and user portfolio specifics.
-*   **LLM-Powered Analysis:** Uses OpenAI's models (like GPT-4o mini) to synthesize search results, analyze data, and generate summaries.
+*   **LLM-Powered Analysis:** Uses OpenAI's models (like GPT-o4 mini) to synthesize search results, analyze data, and generate summaries.
 *   **Portfolio Integration:** Extracts keywords from a user's portfolio (`user_portfolio.txt`) to fetch relevant company news and earnings information.
 *   **Calendar Generation:** Creates structured monthly, weekly, and daily event calendars based on the analyzed data.
 *   **Caching:** Implements a local cache (`cache.db`) to avoid redundant API calls and speed up processing.

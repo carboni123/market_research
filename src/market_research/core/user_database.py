@@ -3,12 +3,13 @@ import sqlite3
 import logging
 import os
 from datetime import datetime
+from config import config
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 class UserDatabase:
-    def __init__(self, db_path="user_data.db"): # Keep default for standalone use? Or require path? Let's require it implicitly via main.py setting it.
+    def __init__(self, db_path=config.USER_DB_PATH): # Keep default for standalone use? Or require path? Let's require it implicitly via main.py setting it.
         self.db_path = db_path
         # Ensure parent directory exists
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)

@@ -1,16 +1,13 @@
-# app/api/openai_api.py  <- Make sure this is the correct path
+# src/market_research/api/openai_api.py
 import asyncio
 from openai import OpenAI
-# Make sure these imports are correct relative to openai_api.py
 from .api import API # Assuming api.py is in the same directory
 from .api_tool_factory import ApiToolFactory # Assuming api_tool_factory.py is in the same directory
 from typing import List, Dict, Any, Optional
 import logging
 import json
 import traceback
-from dotenv import load_dotenv
 
-load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 module_logger = logging.getLogger(__name__)
 
@@ -24,7 +21,7 @@ class OpenAIAPI(API):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gpt-4o-mini", # Default model supports web search
+        model: str = "o4-mini", # Default model supports web search
         tool_factory: Optional[ApiToolFactory] = None
     ):
         """
@@ -43,10 +40,6 @@ class OpenAIAPI(API):
                 "file path, or set OPENAI_API_KEY environment variable."
             )
         self.client = OpenAI(api_key=self.api_key)
-
-        # Ensure the selected model supports the web search tool
-        if model not in ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]: # Add other compatible models if needed
-             module_logger.warning(f"Model '{model}' might not support 'web_search_preview'. Recommended models: gpt-4o, gpt-4o-mini.")
 
         self.model = model
         self.tool_factory = tool_factory
@@ -96,28 +89,6 @@ class OpenAIAPI(API):
 
         # 2. Define the built-in web search tool
         web_search_tool: Dict[str, Any] = {"type": "web_search_preview"}
-
-        # Add optional web search parameters if provided
-        web_search_params: Dict[str, Any] = {}
-        if user_location:
-            web_search_params["user_location"] = user_location
-        if search_context_size:
-             # Basic validation for search_context_size
-             if search_context_size not in ["low", "medium", "high"]:
-                  module_logger.warning(f"Invalid search_context_size '{search_context_size}'. Using default. Valid options: 'low', 'medium', 'high'.")
-             else:
-                  web_search_params["search_context_size"] = search_context_size
-
-        if web_search_params:
-             # Embed parameters under a 'web_search_preview' key if using them
-             # Note: The exact structure for optional params might evolve.
-             # As of some documentation, it might be directly within the tool object,
-             # or potentially under a key matching the type. Check latest OpenAI docs if issues arise.
-             # Let's assume direct embedding for now based on typical tool structures:
-             web_search_tool["web_search_preview"] = web_search_params
-             # If the above doesn't work, try placing params directly:
-             # web_search_tool.update(web_search_params)
-
 
         # 3. Combine custom tools and the web search tool
         final_tools = custom_tools + [web_search_tool]

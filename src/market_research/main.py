@@ -1,19 +1,21 @@
 # main.py
 import os
 import asyncio
-import sqlite3
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Any # Added typing imports
 
 # Local Imports
-from core import extract_portfolio_keywords, MARKET_KEYWORDS
+from core.keywords import extract_portfolio_keywords, MARKET_KEYWORDS
 from prompts import combine_scrape_prompt, combine_portfolio_prompt, analyze_data, create_calendar
 # --- API and Tool Factory Imports ---
-from api import OpenAIAPI  # Import the correct class
-from api.api_tool_factory import ApiToolFactory # Import the factory
+from api.openai_api import OpenAIAPI
+from api.api_tool_factory import ApiToolFactory
 # --- User Database Import ---
-from market_research.core.user_database import UserDatabase
+from core.user_database import UserDatabase
+from core.call_cache import CacheManager
+
+from config import config
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -22,115 +24,19 @@ logging.getLogger('openai').setLevel(logging.WARNING) # Quieten OpenAI library l
 # Ensure analysis directory exists
 os.makedirs("analysis", exist_ok=True)
 
+PORTFOLIO_PATH = config.PORTFOLIO_PATH
+
 # --- Instantiate API with Tool Factory ---
 # Use a model that supports tool calling and web search
-OPENAI_MODEL = "gpt-4o-mini" # Or "gpt-4-turbo", "gpt-4o" etc.
+OPENAI_MODEL = config.GPT_MODEL
+MAX_TOKENS = 8192
 tool_factory = ApiToolFactory()
 openai_api = OpenAIAPI(tool_factory=tool_factory, model=OPENAI_MODEL)
 # -----------------------------------------
-
-# Define cache expiration period in hours
-CACHE_EXPIRATION_HOURS = 24 # Keep cache logic
-
-# --- CacheManager Definition (Keep as is) ---
-class CacheManager:
-    def __init__(self, db_path='cache.db'):
-        self.db_path = db_path
-        # Use context manager for connection to ensure it's closed properly
-        # self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        # self.cursor = self.conn.cursor()
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS summaries (
-                    summary_type TEXT,
-                    keyword TEXT,
-                    summary TEXT,
-                    timestamp TEXT,
-                    UNIQUE(summary_type, keyword)
-                )
-            ''')
-            conn.commit()
-        logging.info(f"CacheManager initialized with db: {db_path}")
-
-    def _get_connection(self):
-         # Return a new connection for thread safety if needed, or manage a single connection carefully.
-         # For simplicity in this example, we create a new connection per operation.
-         # In high-concurrency scenarios, consider a connection pool.
-        return sqlite3.connect(self.db_path, check_same_thread=False) # Allow different threads
-
-
-    def check_cache(self, summary_type, keyword):
-        """
-        Returns a cached summary if it exists and hasn’t expired.
-        Checks based on timestamp within CACHE_EXPIRATION_HOURS.
-        """
-        try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT summary, timestamp FROM summaries
-                    WHERE summary_type = ? AND keyword = ?
-                ''', (summary_type, keyword))
-                result = cursor.fetchone()
-
-            if result:
-                summary, timestamp_str = result
-                try:
-                    timestamp = datetime.fromisoformat(timestamp_str)
-                    now = datetime.now()
-                    age_hours = (now - timestamp).total_seconds() / 3600
-
-                    if age_hours < CACHE_EXPIRATION_HOURS:
-                        logging.info(f"Cache hit for {summary_type} - {keyword} (age: {age_hours:.2f} hours)")
-                        return summary
-                    else:
-                        logging.info(f"Cache expired for {summary_type} - {keyword}: age limit exceeded ({age_hours:.2f} hours > {CACHE_EXPIRATION_HOURS})")
-                        # Optionally delete expired entry here
-                        # self.delete_cache_entry(summary_type, keyword)
-                except ValueError as e:
-                    logging.error(f"Error parsing timestamp for keyword {keyword} from cache: {e}")
-                    # Treat as expired/invalid
-            else:
-                 logging.info(f"Cache miss for {summary_type} - {keyword}")
-
-        except sqlite3.Error as e:
-            logging.error(f"SQLite error checking cache for {summary_type} - {keyword}: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error checking cache for {summary_type} - {keyword}: {e}")
-
-        return None # Return None on miss, expiry, or error
-
-    def update_cache(self, summary_type, keyword, summary):
-        timestamp = datetime.now().isoformat(sep=" ", timespec="seconds")
-        try:
-            with self._get_connection() as conn:
-                 cursor = conn.cursor()
-                 cursor.execute('''
-                    INSERT OR REPLACE INTO summaries (summary_type, keyword, summary, timestamp)
-                    VALUES (?, ?, ?, ?)
-                ''', (summary_type, keyword, summary, timestamp))
-                 conn.commit()
-                 logging.info(f"Cache updated for {summary_type} - {keyword}")
-        except sqlite3.Error as e:
-            logging.error(f"SQLite error updating cache for {summary_type} - {keyword}: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error updating cache for {summary_type} - {keyword}: {e}")
-
-    # Optional: Add a close method if you manage a persistent connection
-    # def close(self):
-    #     if self.conn:
-    #         self.conn.close()
-    #         logging.info("CacheManager connection closed.")
-
 # Instantiate our cache manager
-cache_manager = CacheManager()
+cache_manager = CacheManager(db_path=config.CACHE_DB_PATH)
 
-# --- Remove Old Scraping Logic ---
-# Delete async_search_api, async_scrape_api, and related globals
-
-# --- Modified Asynchronous Functions ---
-
+# --- Asynchronous Functions ---
 async def generate_summary(summary_type: str, keyword: str) -> str:
     """
     Generates a summary using the OpenAI API with web search tool.
@@ -159,7 +65,7 @@ async def generate_summary(summary_type: str, keyword: str) -> str:
             openai_api.generate_text_with_tools(
                 messages=initial_messages,
                 model=OPENAI_MODEL, # Use the configured model
-                max_tokens=4096, # Adjust as needed
+                max_tokens=MAX_TOKENS, # Adjust as needed
                 temperature=0.5, # Lower temperature for factual synthesis
                 max_tool_iterations=3 # Limit iterations in case of loops
             ),
@@ -231,7 +137,7 @@ async def analyze_summaries(summaries: List[str]) -> str:
             openai_api.generate_text_with_tools(
                 messages=messages,
                 model=OPENAI_MODEL, # Can use the same model or a different one if needed
-                max_tokens=4096, # Adjust as needed, analysis might be long
+                max_tokens=MAX_TOKENS, # Adjust as needed, analysis might be long
                 temperature=0.5,
                 max_tool_iterations=1 # Should not need tools here
             ),
@@ -282,7 +188,7 @@ async def create_calendar_from_analysis(analysis: str) -> str:
             openai_api.generate_text_with_tools(
                 messages=messages,
                 model=OPENAI_MODEL,
-                max_tokens=4096, # Calendar output can be large
+                max_tokens=MAX_TOKENS, # Calendar output can be large
                 temperature=0.3, # More deterministic for structured output
                 max_tool_iterations=1 # Should not need tools
             ),
@@ -320,7 +226,7 @@ async def main():
     for period_keywords in MARKET_KEYWORDS.values():
         all_market_keywords.extend(period_keywords)
 
-    portfolio_keywords = extract_portfolio_keywords()
+    portfolio_keywords = extract_portfolio_keywords(portfolio_file_path=PORTFOLIO_PATH)
 
     # Schedule market keyword processing
     for keyword in all_market_keywords:
@@ -365,7 +271,7 @@ async def main():
 
     # --- Persist Results in the User Database (Keep as is, but handle potential errors) ---
     # For demonstration, assume user "alice"
-    user_db = UserDatabase()
+    user_db = UserDatabase(db_path=config.USER_DB_PATH)
     try: # Add try/finally for db connection
         user = user_db.get_user("alice")
         if user:

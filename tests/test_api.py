@@ -17,7 +17,7 @@ from openai import OpenAIError, APIConnectionError # Import relevant OpenAI erro
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.chat.chat_completion import Choice
 
-
+API_MODEL = "gpt-4o-mini"
 # --- Fixtures ---
 
 # Fixture for ApiToolFactory (can be empty for these tests)
@@ -40,7 +40,7 @@ async def openai_api_instance(mock_tool_factory):
     os.environ["OPENAI_API_KEY"] = "test_key_from_env"
     # Use patch context manager for the OpenAI client instantiation
     with patch('market_research.api.openai_api.OpenAI', return_value=MagicMock()) as mock_openai_constructor:
-        api = OpenAIAPI(tool_factory=mock_tool_factory, model="gpt-4o-mini")
+        api = OpenAIAPI(tool_factory=mock_tool_factory, model=API_MODEL)
         # Replace the client instance created inside __init__ with our finer-grained mock
         api.client = MagicMock()
         api.client.chat.completions.create = AsyncMock() # Ensure the method is async mock
@@ -81,7 +81,7 @@ def create_mock_completion(content: str = None, tool_calls: list = None, finish_
         id="chatcmpl-mock-" + os.urandom(4).hex(),
         choices=[choice],
         created=1677652288, # Example timestamp
-        model="gpt-4o-mini",
+        model=API_MODEL,
         object="chat.completion",
         system_fingerprint="fp_mock", # Example fingerprint
         usage=None # Usage can be None or a mock object
@@ -101,7 +101,7 @@ async def test_api_initialization_success_env(mock_tool_factory):
             api = OpenAIAPI(tool_factory=mock_tool_factory)
             assert api.api_key == "test_key_123"
             mock_constructor.assert_called_once_with(api_key="test_key_123")
-            assert api.model == "gpt-4o-mini" # Default model
+            assert api.model == API_MODEL # Default model
             assert api.tool_factory is mock_tool_factory
     finally:
         del os.environ["OPENAI_API_KEY"]
@@ -150,7 +150,7 @@ async def test_generate_text_simple(openai_api_instance):
     openai_api_instance.client.chat.completions.create.assert_awaited_once()
     call_args = openai_api_instance.client.chat.completions.create.call_args
     assert call_args.kwargs['messages'] == messages
-    assert call_args.kwargs['model'] == "gpt-4o-mini" # Default
+    assert call_args.kwargs['model'] == API_MODEL # Default
     assert "web_search_preview" in [t['type'] for t in call_args.kwargs['tools']] # Check web search tool is present
     assert call_args.kwargs['tool_choice'] == "auto"
 
@@ -171,7 +171,7 @@ async def test_generate_text_with_web_search_implicit(openai_api_instance):
 
     mock_choice = Choice(index=0, message=mock_message, finish_reason="stop", logprobs=None)
     mock_completion = ChatCompletion(
-        id="chatcmpl-mock-web", choices=[mock_choice], created=1, model="gpt-4o-mini", object="chat.completion"
+        id="chatcmpl-mock-web", choices=[mock_choice], created=1, model=API_MODEL, object="chat.completion"
     )
 
     openai_api_instance.client.chat.completions.create.return_value = mock_completion
