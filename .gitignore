@@ -168,3 +168,4 @@ cython_debug/
 /app/old_cache
 /app/non_recurrent
 /app/exported_summaries
+/analysis

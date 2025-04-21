@@ -21,7 +21,7 @@ class OpenAIAPI(API):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gpt-4o-mini", # Default model supports web search
+        model: str = "gpt-4o-mini-search-preview", # Default model supports web search
         tool_factory: Optional[ApiToolFactory] = None
     ):
         """
@@ -80,23 +80,6 @@ class OpenAIAPI(API):
         if not model:
             model = self.model
 
-        # --- Tool Configuration ---
-        # 1. Get custom tools from the factory
-        custom_tools = self.tool_factory.get_tool_definitions() if self.tool_factory else []
-
-        # 2. Define the built-in web search tool
-        web_search_tool: Dict[str, Any] = {"type": "web_search_preview"}
-
-        # 3. Combine custom tools and the web search tool
-        final_tools = custom_tools.append(web_search_tool)
-
-
-        # 4. Set tool_choice to "auto" to let the model decide when to use tools
-        tool_choice = "auto" if final_tools else None
-        # -------------------------
-
-        module_logger.info(f"Starting generation with model {model}. Initial messages count: {len(messages)}. Tools configured: {len(final_tools)} (Web Search included). Tool Choice: {tool_choice}")
-
         current_messages = list(messages)
         last_list_products_result_content: Optional[str] = None # Keep your custom logic state
         iteration_count = 0
@@ -119,10 +102,8 @@ class OpenAIAPI(API):
                     self.client.chat.completions.create,
                     model=model,
                     messages=current_messages,
-                    tools=final_tools if final_tools else None, # Pass the combined list
-                    tool_choice=tool_choice,                 # Let the model decide
+                    web_search_options={},
                     max_tokens=max_tokens,
-                    temperature=temperature,
                     **kwargs,
                 )
                 # Add a timeout to the API call itself

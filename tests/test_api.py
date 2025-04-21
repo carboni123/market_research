@@ -17,7 +17,6 @@ from openai import OpenAIError, APIConnectionError # Import relevant OpenAI erro
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.chat.chat_completion import Choice
 
-API_MODEL = "gpt-4o-mini"
 # --- Fixtures ---
 
 # Fixture for ApiToolFactory (can be empty for these tests)
