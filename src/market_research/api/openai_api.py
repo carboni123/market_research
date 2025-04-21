@@ -21,7 +21,7 @@ class OpenAIAPI(API):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "o4-mini", # Default model supports web search
+        model: str = "gpt-4o-mini", # Default model supports web search
         tool_factory: Optional[ApiToolFactory] = None
     ):
         """
@@ -54,12 +54,9 @@ class OpenAIAPI(API):
         self,
         messages: List[Dict[str, Any]],
         model: Optional[str] = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
         temperature: float = 0.7,
         max_tool_iterations: int = 5,
-        # --- Optional parameters for web search ---
-        user_location: Optional[Dict[str, Any]] = None,
-        search_context_size: Optional[str] = None, # "low", "medium", "high"
         **kwargs: Any,
     ) -> Optional[str]:
         """
@@ -91,7 +88,8 @@ class OpenAIAPI(API):
         web_search_tool: Dict[str, Any] = {"type": "web_search_preview"}
 
         # 3. Combine custom tools and the web search tool
-        final_tools = custom_tools + [web_search_tool]
+        final_tools = custom_tools.append(web_search_tool)
+
 
         # 4. Set tool_choice to "auto" to let the model decide when to use tools
         tool_choice = "auto" if final_tools else None
