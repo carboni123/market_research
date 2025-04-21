@@ -3,7 +3,8 @@ import sqlite3
 import logging
 import os
 from datetime import datetime
-from config import config
+
+from market_research.config import config
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

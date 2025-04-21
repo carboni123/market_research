@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import logging
 
-from config import config
+from market_research.config import config
 
 # Define cache expiration period in hours
 CACHE_EXPIRATION_HOURS = config.CACHE_EXPIRATION_HOURS

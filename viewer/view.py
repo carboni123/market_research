@@ -1,7 +1,13 @@
 # viewer/view.py
-import json
+import os
+import sys
 from flask import Flask, Response, render_template, request, redirect, url_for
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+SRC_PATH = os.path.join(BASE_DIR, 'src')
+if SRC_PATH not in sys.path:
+    sys.path.insert(0, SRC_PATH)
+    
 from market_research.core.user_database import UserDatabase
 from market_research.core.calendar_parser import SummaryParser, CalendarParser
 
