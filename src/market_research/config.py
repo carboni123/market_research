@@ -17,6 +17,7 @@ class Config:
             logging.warning("OPENAI_API_KEY not found in environment variables.")
 
         self.GPT_MODEL = os.getenv("GPT_MODEL", "o4-mini")
+        self.GPT_SEARCH_MODEL = os.getenv("GPT_SEARCH_MODEL", "gpt-4o-mini-search-preview")
         logging.info(f"Using GPT Model: {self.GPT_MODEL}")
 
         # Determine the true project root for resolving relative paths:

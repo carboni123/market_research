@@ -26,6 +26,7 @@ os.makedirs(analysis_dir, exist_ok=True)
 PORTFOLIO_PATH = config.PORTFOLIO_PATH # Assumes config resolves this correctly
 
 # --- Instantiate API, Cache Manager ---
+SEARCH_MODEL = config.GPT_SEARCH_MODEL
 OPENAI_MODEL = config.GPT_MODEL
 MAX_TOKENS = 8192
 tool_factory = ApiToolFactory()
@@ -42,13 +43,16 @@ def is_error_response(response: Optional[str]) -> bool:
     if response is None: return True
     return response.strip().startswith(("[Error:", "[Warning:", "Error:"))
 
+
 # --- Async Functions (generate_summary, process_keyword, analyze_summaries, create_calendar) ---
-# Keep the versions from the previous step that accept/use the semaphore
 async def generate_summary(summary_type: str, keyword: str, semaphore: asyncio.Semaphore) -> Optional[str]:
     logging.info(f"Requesting summary generation for type '{summary_type}', keyword: '{keyword}'")
-    if summary_type == "market": system_prompt = combine_scrape_prompt(keyword)
-    elif summary_type == "portfolio": system_prompt = combine_portfolio_prompt(keyword)
-    else: return f"[Error: Invalid summary type '{summary_type}']"
+    if summary_type == "market":
+        system_prompt = combine_scrape_prompt(keyword)
+    elif summary_type == "portfolio":
+        system_prompt = combine_portfolio_prompt(keyword)
+    else:
+        return f"[Error: Invalid summary type '{summary_type}']"
 
     initial_messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": f"Please provide the report for: {keyword}"}]
     response = None
@@ -58,9 +62,15 @@ async def generate_summary(summary_type: str, keyword: str, semaphore: asyncio.S
             logging.info(f"Semaphore acquired, calling API for keyword: '{keyword}'")
             response = await asyncio.wait_for(
                 openai_api.generate_text_with_tools(
-                    messages=initial_messages, model=OPENAI_MODEL, max_tokens=MAX_TOKENS,
-                    temperature=0.5, max_tool_iterations=3
-                ), timeout=180.0)
+                    messages=initial_messages,
+                    model=SEARCH_MODEL,
+                    max_tokens=MAX_TOKENS,
+                    temperature=0.5,
+                    max_tool_iterations=3,
+                    web_search_options={},
+                ),
+                timeout=180.0,
+            )
         logging.debug(f"Semaphore released for keyword: '{keyword}'")
 
         if is_error_response(response):
@@ -79,6 +89,7 @@ async def generate_summary(summary_type: str, keyword: str, semaphore: asyncio.S
     except Exception as e:
         logging.exception(f"Error generating summary for keyword '{keyword}': {e}")
         return f"[Error: Exception during summary generation for '{keyword}' - {type(e).__name__}]"
+
 
 async def process_keyword(summary_type: str, keyword: str, semaphore: asyncio.Semaphore) -> Optional[str]:
     logging.info(f"Processing keyword '{keyword}' (type: {summary_type})")
@@ -102,13 +113,16 @@ async def analyze_summaries(summaries: List[str]) -> Optional[str]:
     instructions = analyze_data()
     messages = [{"role": "system", "content": instructions}, {"role": "user", "content": summaries_str}]
     try:
-        async with api_semaphore: # Use semaphore
+        async with api_semaphore:
             logging.info("Semaphore acquired, calling API for analysis")
             response = await asyncio.wait_for(
                 openai_api.generate_text_with_tools(
-                    messages=messages, model=OPENAI_MODEL, max_tokens=MAX_TOKENS,
-                    temperature=0.5, max_tool_iterations=1
-                ), timeout=120.0)
+                    messages=messages,
+                    model=OPENAI_MODEL,
+                    max_completion_tokens=16384,
+                ),
+                timeout=120.0,
+            )
         logging.debug("Semaphore released for analysis")
         if is_error_response(response):
             logging.warning(f"Analysis generation returned error: {response}")
@@ -118,8 +132,8 @@ async def analyze_summaries(summaries: List[str]) -> Optional[str]:
             with open(output_filename, 'w', encoding='utf-8') as f: f.write(response)
             return response
         else:
-             logging.warning("Analysis generation empty (not error).")
-             return "[Error: Analysis generation failed (empty response).]"
+            logging.warning("Analysis generation empty (not error).")
+            return "[Error: Analysis generation failed (empty response).]"
     except asyncio.TimeoutError:
         logging.error("Timeout during analysis.")
         return "[Error: Timeout during analysis.]"
@@ -141,9 +155,8 @@ async def create_calendar_from_analysis(analysis: str) -> Optional[str]:
             response = await asyncio.wait_for(
                 openai_api.generate_text_with_tools(
                     messages=messages,
-                    model="o4-mini",
-                    max_tokens=16384,
-                    temperature=0.8,
+                    model=OPENAI_MODEL,
+                    max_completion_tokens=16384,
                 ),
                 timeout=90.0,
             )

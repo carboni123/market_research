@@ -54,8 +54,6 @@ class OpenAIAPI(API):
         self,
         messages: List[Dict[str, Any]],
         model: Optional[str] = None,
-        max_tokens: int = 8192,
-        temperature: float = 0.7,
         max_tool_iterations: int = 5,
         **kwargs: Any,
     ) -> Optional[str]:
@@ -79,6 +77,7 @@ class OpenAIAPI(API):
         """
         if not model:
             model = self.model
+        logging.info(f"Using model: {model}")
 
         current_messages = list(messages)
         last_list_products_result_content: Optional[str] = None # Keep your custom logic state
@@ -102,8 +101,6 @@ class OpenAIAPI(API):
                     self.client.chat.completions.create,
                     model=model,
                     messages=current_messages,
-                    web_search_options={},
-                    max_tokens=max_tokens,
                     **kwargs,
                 )
                 # Add a timeout to the API call itself
