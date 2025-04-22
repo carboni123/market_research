@@ -2,113 +2,96 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>User Dashboard</title>
-  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> -->
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f9f9f9;
-      margin: 0;
-      padding: 0;
-    }
-    header, footer {
-      background-color: #333;
-      color: #fff;
-      text-align: center;
-      padding: 1em 0;
-    }
-    nav {
-      background-color: #444;
-      padding: 0.5em;
-    }
-    nav ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-    nav li {
-      display: inline;
-      margin: 0 1em;
-    }
-    nav a {
-      color: #fff;
-      text-decoration: none;
-    }
-    section {
-      max-width: 800px;
-      margin: 2em auto;
-      background: #fff;
-      padding: 1em 2em;
-      border-radius: 8px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-    }
-    h1, h2 {
-      color: #333;
-    }
-    ul {
-      padding-left: 1.5em;
-    }
-    li {
-      margin-bottom: 0.5em;
-    }
-    small {
-      color: #777;
-    }
+  <title>Market Research Dashboard</title>
+  <!-- Link to a basic stylesheet if desired -->
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> -->
+   <style>
+    body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; }
+    header, footer { background-color: #333; color: #fff; padding: 10px 20px; text-align: center; }
+    nav { background-color: #444; padding: 8px; text-align: center; margin-bottom: 20px; }
+    nav ul { list-style: none; padding: 0; margin: 0; }
+    nav li { display: inline; margin: 0 15px; }
+    nav a { color: #fff; text-decoration: none; font-weight: bold; }
+    nav a:hover { text-decoration: underline; }
+    section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1, h2 { color: #333; }
+    ul { list-style: none; padding: 0; }
+    li { background: #eee; margin-bottom: 10px; padding: 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+    li span { flex-grow: 1; margin-right: 15px; }
+    li small { color: #666; font-size: 0.9em; }
+    .actions a { margin-left: 10px; text-decoration: none; padding: 5px 10px; border-radius: 3px; font-size: 0.9em; }
+    .view-link { background-color: #5cb85c; color: white; }
+    .download-link { background-color: #337ab7; color: white; }
+    .view-link:hover { background-color: #4cae4c; }
+    .download-link:hover { background-color: #286090; }
+    p { color: #555; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Welcome to Your User Dashboard</h1>
+    <h1>Market Research Dashboard</h1>
   </header>
-  
+
   <nav>
     <ul>
+      <li><a href="{{ url_for('index') }}">Home</a></li>
       <li><a href="{{ url_for('add_user') }}">Add User</a></li>
-      <li><a href="{{ url_for('portfolio', user_id=1) }}">View Portfolio</a></li>
-      <li><a href="{{ url_for('view_summaries') }}">Summaries</a></li>
-      <li><a href="{{ url_for('view_calendar') }}">Calendar</a></li>
+      <li><a href="{{ url_for('portfolio') }}">View Portfolio</a></li>
+      <li><a href="{{ url_for('view_summaries') }}">All Summaries</a></li>
+      <li><a href="{{ url_for('view_calendar_list') }}">All Calendars</a></li>
+      <li><a href="{{ url_for('add_summary') }}">+ Add Summary</a></li>
+      <li><a href="{{ url_for('add_calendar') }}">+ Add Calendar</a></li>
     </ul>
   </nav>
-  
+
   <section>
     <h2>Latest User Summaries</h2>
     {% if summaries %}
       <ul>
         {% for summary in summaries %}
           <li>
-            <!-- Link to download the summary markdown -->
-            <a href="{{ url_for('download_summary', summary_index=loop.index0) }}">
-              Download Summary ({{ summary[3] }})
-            </a>
+            {# Assuming summary format: (id, summary_type, keyword, summary_text, created_at) #}
+            <span>
+                <strong>{{ summary[1] | capitalize }} - {{ summary[2] }}</strong>
+                <small> (Created: {{ summary[4] }})</small>
+            </span>
+            <div class="actions">
+                <a href="{{ url_for('view_summary', summary_id=summary[0]) }}" class="view-link">View</a>
+                <a href="{{ url_for('download_summary', summary_id=summary[0]) }}" class="download-link">Download MD</a>
+            </div>
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p>No summaries available at the moment.</p>
+      <p>No summaries available yet. Run the main analysis script.</p>
     {% endif %}
   </section>
-  
+
   <section>
-    <h2>Upcoming Calendar Events</h2>
+    <h2>Latest Calendar Events</h2>
     {% if calendars %}
       <ul>
         {% for calendar in calendars %}
-          <li>
-            <!-- Link to download the calendar event markdown -->
-            <a href="{{ url_for('download_calendar', calendar_index=loop.index0) }}">
-              Download Calendar Event ({{ calendar[1] }})
-            </a>
+         <li>
+            {# Assuming calendar format: (id, calendar_result_text, created_at) #}
+            <span>
+                <strong>Calendar Entry</strong>
+                <small> (Created: {{ calendar[2] }})</small>
+            </span>
+            <div class="actions">
+                <a href="{{ url_for('view_calendar', calendar_id=calendar[0]) }}" class="view-link">View</a>
+                <a href="{{ url_for('download_calendar', calendar_id=calendar[0]) }}" class="download-link">Download MD</a>
+            </div>
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p>No calendar events available at the moment.</p>
+      <p>No calendar events available yet. Run the main analysis script.</p>
     {% endif %}
   </section>
-  
+
   <footer>
-    <p>&copy; 2025 Your Company Name. All rights reserved.</p>
+    <p>© {{ now.year }} Market Research Project</p>
   </footer>
 </body>
 </html>

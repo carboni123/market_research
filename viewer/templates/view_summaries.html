@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>All Summaries</title>
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">  -->
+    <style>
+        /* Add styles similar to index.html or from style.css */
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        header,
+        footer {
+            background-color: #333;
+            color: #fff;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        nav {
+            background-color: #444;
+            padding: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav li {
+            display: inline;
+            margin: 0 15px;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1,
+        h2 {
+            color: #333;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #eee;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        li span {
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+
+        li small {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .actions a {
+            margin-left: 10px;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        .view-link {
+            background-color: #5cb85c;
+            color: white;
+        }
+
+        .download-link {
+            background-color: #337ab7;
+            color: white;
+        }
+
+        p {
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>All User Summaries</h1>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('view_calendar') }}">All Calendars</a></li>
+            <li><a href="{{ url_for('add_summary') }}">+ Add Summary</a></li>
+        </ul>
+    </nav>
+    <section>
+        {% if summaries %}
+        <ul>
+            {% for summary in summaries %}
+            <li>
+                <span>
+                    <strong>{{ summary[1] | capitalize }} - {{ summary[2] }}</strong>
+                    <small> (Created: {{ summary[4] }})</small>
+                </span>
+                <div class="actions">
+                    <a href="{{ url_for('view_summary', summary_id=summary[0]) }}" class="view-link">View</a>
+                    <a href="{{ url_for('download_summary', summary_id=summary[0]) }}" class="download-link">Download
+                        MD</a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No summaries available.</p>
+        {% endif %}
+    </section>
+    <footer>
+        <p>© {{ now.year }} Market Research Project</p>
+    </footer>
+</body>
+
+</html>
