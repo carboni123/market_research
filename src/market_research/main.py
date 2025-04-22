@@ -12,6 +12,7 @@ from .api.openai_api import OpenAIAPI
 from .api.api_tool_factory import ApiToolFactory
 from .core.user_database import UserDatabase
 from .core.call_cache import CacheManager
+from .models import AnalysisReport, EconomicCalendar
 from .config import config
 
 # Setup logging
@@ -120,6 +121,7 @@ async def analyze_summaries(summaries: List[str]) -> Optional[str]:
                     messages=messages,
                     model=OPENAI_MODEL,
                     max_completion_tokens=16384,
+                    expect_json=AnalysisReport,
                 ),
                 timeout=120.0,
             )
@@ -157,6 +159,7 @@ async def create_calendar_from_analysis(analysis: str) -> Optional[str]:
                     messages=messages,
                     model=OPENAI_MODEL,
                     max_completion_tokens=16384,
+                    expect_json=EconomicCalendar,
                 ),
                 timeout=90.0,
             )

@@ -70,28 +70,6 @@ Return a structured JSON report with:
 - Relevance Rating
 - Event Date(s)
 - General Overview and Summary
-Use this schema:
-{{
-  "report": {{
-    "title": "Market Events Analysis",
-    "sections": [
-      {{
-        "heading": "Current Events",
-        "content": "List of events occurring on or before {date.today()} with type, rating, date(s), and summary"
-      }},
-      {{
-        "heading": "Future Events",
-        "content": "List of events after {date.today()} with type, rating, date(s), and summary"
-      }},
-      {{
-        "heading": "Portfolio Summary",
-        "content": "Summary of user’s holdings and relevant events"
-      }}
-    ],
-    "date_generated": "{date.today()}"
-  }}
-}}
-Avoid markdown formatting (e.g., bold, italics) in content fields.
 </output_format>
 
 <notes>

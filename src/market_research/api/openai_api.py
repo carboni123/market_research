@@ -1,6 +1,7 @@
 # src/market_research/api/openai_api.py
 import asyncio
-from openai import OpenAI
+from openai import OpenAI, BadRequestError
+from pydantic import BaseModel
 from .api import API # Assuming api.py is in the same directory
 from .api_tool_factory import ApiToolFactory # Assuming api_tool_factory.py is in the same directory
 from typing import List, Dict, Any, Optional
@@ -49,126 +50,109 @@ class OpenAIAPI(API):
         else:
              module_logger.info(f"OpenAI API initialized with model: {self.model} and built-in web_search_preview. No ApiToolFactory provided.")
 
-
     async def generate_text_with_tools(
         self,
         messages: List[Dict[str, Any]],
+        expect_json: BaseModel,
         model: Optional[str] = None,
         max_tool_iterations: int = 5,
         **kwargs: Any,
     ) -> Optional[str]:
         """
         Generates text using the OpenAI API, potentially using custom tools
-        from the factory and the built-in web search tool.
+        from the factory and the built-in web search tool. Can request JSON output.
 
         Args:
             messages: List of message dictionaries for the conversation history.
             model: Override the default model for this call.
-            max_tokens: Max tokens for the completion.
-            temperature: Sampling temperature.
             max_tool_iterations: Maximum number of tool call/response cycles.
-            user_location: Optional dictionary for web search localization.
-                           Example: {"type": "approximate", "country": "US", "region": "CA", "city": "San Francisco"}
-            search_context_size: Optional context size for web search ("low", "medium", "high").
+            expect_json: If True, requests JSON output format from the API.
             **kwargs: Additional arguments passed to the OpenAI client.
 
         Returns:
             The final text content from the assistant, or None on error/timeout.
         """
-        if not model:
-            model = self.model
-        logging.info(f"Using model: {model}")
+        target_model = model or self.model
+        module_logger.info(f"Starting generation with model: {target_model}. Expect JSON: {expect_json}")
 
         current_messages = list(messages)
-        last_list_products_result_content: Optional[str] = None # Keep your custom logic state
+        last_list_products_result_content: Optional[str] = None # Custom logic state
         iteration_count = 0
+
+        # Prepare API call arguments
+        api_call_args = {
+            "model": target_model,
+            "messages": current_messages,
+            **kwargs,
+        }
+        
+        if expect_json:
+            api_call_args["response_format"] = expect_json
+        
+        if self.tool_factory:
+            custom_tools = self.tool_factory.get_tool_definitions()
+            if custom_tools:
+                api_call_args["tools"] = custom_tools
+                api_call_args["tool_choice"] = "auto"
 
         try:
             while iteration_count < max_tool_iterations:
-                module_logger.debug(f"--- Iteration {iteration_count + 1} ---")
-                current_iteration_list_products_result = last_list_products_result_content
-                last_list_products_result_content = None
+                module_logger.debug(f"--- Tool Iteration {iteration_count + 1} ---")
+                api_call_args["messages"] = list(current_messages) # Use fresh list copy
 
+                # API Call
                 try:
-                     logging.debug(f"Messages being sent to API (Iteration {iteration_count+1}): {json.dumps(current_messages, indent=2, default=str)}") # Added default=str for non-serializable
+                     completion_task = asyncio.to_thread(
+                         self.client.beta.chat.completions.parse,
+                         **api_call_args
+                     )
+                     completion = await asyncio.wait_for(completion_task, timeout=180.0)
                 except TypeError as e:
-                    logging.error(f"Serialization error before API call (Iteration {iteration_count+1}): {e}")
-                    logging.debug(f"Messages (raw list): {current_messages}")
+                    # Catch serialization errors specifically before the API call
+                    module_logger.error(f"Serialization error preparing API call (Iteration {iteration_count+1}): {e}")
+                    module_logger.debug(f"Problematic Messages (structure/types): {current_messages}")
+                    return f"[Error: Internal serialization error before API call]" # Return specific error
 
-                # --- API Call ---
-                # Use asyncio.to_thread for the blocking OpenAI client call
-                completion_task = asyncio.to_thread(
-                    self.client.chat.completions.create,
-                    model=model,
-                    messages=current_messages,
-                    **kwargs,
-                )
-                # Add a timeout to the API call itself
-                completion = await asyncio.wait_for(completion_task, timeout=120.0) # 2 min timeout for API call
-                # ---------------
 
                 response_message_obj = completion.choices[0].message
                 message_dict = self._convert_message_to_dict(response_message_obj)
-
                 current_messages.append(message_dict)
-                module_logger.debug(f"API Response (converted to dict and added): {json.dumps(message_dict, indent=2, default=str)}")
 
                 tool_calls_in_response = message_dict.get("tool_calls")
 
-                # --- Handle Response ---
+                # Handle Response: No Tool Calls -> Final Response
                 if not tool_calls_in_response:
-                    # Check if the response contains web search results (annotations)
-                    # Note: Annotations might be structured differently depending on API version.
-                    # This checks common patterns. Adjust based on actual observed responses.
-                    web_results_found = False
-                    if message_dict.get("content"):
-                         # Example check: look for annotations in the content or message structure
-                         # This part is speculative and needs verification with actual API responses
-                         # when web_search_preview is used.
-                         # Annotations might be part of the message object directly or within content.
-                         if hasattr(response_message_obj, 'annotations') and response_message_obj.annotations:
-                             web_results_found = True
-                         elif isinstance(message_dict.get("content"), list): # Check for block-based content
-                             for block in message_dict["content"]:
-                                 if block.get("type") == "text" and block.get("text", {}).get("annotations"):
-                                     web_results_found = True
-                                     break
-                         # Add more checks based on actual response structure if needed
+                    module_logger.info("No tool calls requested by model. Returning final response.")
+                    final_content = message_dict.get("content")
 
-                    if web_results_found:
-                         module_logger.info("Model used web search (indicated by annotations) and provided final response.")
-                    else:
-                         module_logger.info("No tool calls requested by the model. Returning final response.")
+                    # Warn if JSON was expected but not received
+                    if expect_json:
+                        is_valid_json_string = False
+                        if isinstance(final_content, str):
+                            try: json.loads(final_content); is_valid_json_string = True
+                            except json.JSONDecodeError: pass
+                        if not is_valid_json_string:
+                             module_logger.warning(f"Expected JSON output but received non-JSON content (type: {type(final_content)}). Returning raw content.")
+                             module_logger.debug(f"Non-JSON content snippet: {str(final_content)[:200]}...")
+                    return final_content
 
-                    return message_dict.get("content") # Return content whether search was used or not
-
-                # --- Process Tool Calls (Your existing logic) ---
-                # This part remains largely the same, handling *custom* tools if any were called.
-                # The web_search_preview tool is handled internally by OpenAI; you won't see a "call" for it here.
-                # You only need to handle calls for functions defined in your ApiToolFactory.
-
+                # Handle Response: Process Tool Calls
                 if not self.tool_factory:
-                    # This case should ideally not happen if tool_calls were received unless they are malformed
-                    # or somehow related to internal OpenAI states not exposed as standard tool calls.
-                    module_logger.error("Tool calls received from API, but no *custom* ApiToolFactory is configured to handle them.")
-                    # It's unlikely a call for a *custom* tool would appear if none were defined.
-                    # Log the unexpected tool calls.
-                    module_logger.warning(f"Unexpected tool calls received: {tool_calls_in_response}")
-                    # Append a message indicating confusion, or decide how to proceed.
-                    # Maybe just continue the loop, hoping the next response is final content.
-                    current_messages.append({"role": "user", "content": "System note: Received unexpected tool calls that cannot be processed."})
-                    iteration_count += 1
-                    continue # Go to the next iteration
+                     module_logger.error("Tool calls received, but no ApiToolFactory configured.")
+                     error_message = "[System Error: Received tool calls but cannot process them.]"
+                     current_messages.append({"role": "user", "content": error_message})
+                     iteration_count += 1
+                     continue
 
-                module_logger.info(f"Custom tool calls requested: {len(tool_calls_in_response)}")
+                module_logger.info(f"Processing {len(tool_calls_in_response)} tool call(s) requested by model.")
                 tool_outputs = []
+                current_iteration_list_products_result = last_list_products_result_content
+                last_list_products_result_content = None
 
-                # --- Process Custom Tool Calls with Intervention Logic ---
                 for tool_call in tool_calls_in_response:
-                    # Check if it's a function call (expected type for custom tools)
                     if tool_call.get("type") != "function":
-                         module_logger.warning(f"Received non-function tool call, skipping: {tool_call}")
-                         continue # Skip non-function calls (like internal search results if they appear here)
+                         module_logger.warning(f"Received non-function tool call type, skipping: {tool_call.get('type')}")
+                         continue
 
                     function_info = tool_call.get("function", {})
                     function_name = function_info.get("name")
@@ -176,93 +160,83 @@ class OpenAIAPI(API):
                     tool_call_id = tool_call.get("id")
 
                     if not tool_call_id or not function_name or function_args_str is None:
-                        module_logger.error(f"Malformed tool call structure received: {tool_call}")
+                        module_logger.error(f"Malformed tool call structure received: ID={tool_call_id}, Name={function_name}, Args Provided={function_args_str is not None}")
                         tool_outputs.append({
                             "role": "tool", "tool_call_id": tool_call_id or "unknown_id",
                             "name": function_name or "unknown_function",
                             "content": json.dumps({"error": "Malformed tool call structure received from API."})})
                         continue
 
-                    # --- *** Intervention Logic (Your existing code for list_products) *** ---
+                    # --- Intervention Logic (Specific to 'list_products') ---
                     should_skip = False
                     if function_name == "list_products" and current_iteration_list_products_result is not None:
                         try:
                             prev_result_data = json.loads(current_iteration_list_products_result)
                             if isinstance(prev_result_data, dict) and prev_result_data.get("products") == []:
-                                module_logger.warning(f"INTERVENTION: Skipping redundant 'list_products' call (ID: {tool_call_id}) because previous call returned empty list.")
+                                module_logger.warning(f"INTERVENTION: Skipping redundant 'list_products' call (ID: {tool_call_id})")
                                 should_skip = True
-                                tool_outputs.append({
-                                    "role": "tool", "tool_call_id": tool_call_id, "name": function_name,
-                                    "content": json.dumps({
-                                        "error": "Redundant Call Blocked",
-                                        "message": "Cannot call 'list_products' again. The previous call indicated the end of the product catalog."
-                                    })})
-                        except json.JSONDecodeError:
-                             module_logger.warning(f"Could not parse previous list_products result for intervention check: {current_iteration_list_products_result}")
+                                tool_outputs.append({ "role": "tool", "tool_call_id": tool_call_id, "name": function_name, "content": json.dumps({"error": "Redundant Call Blocked"})})
                         except Exception as e:
-                             module_logger.warning(f"Error during intervention check for {function_name}: {e}")
+                             module_logger.warning(f"Error during intervention check for {function_name} (ID: {tool_call_id}): {e}", exc_info=False) # Less verbose traceback
 
-                    if should_skip:
-                        continue
+                    if should_skip: continue
 
                     # --- Execute Custom Tool via Factory ---
                     try:
-                        module_logger.info(f"Dispatching custom tool via factory: {function_name} with args string: {function_args_str}")
-                        # Dispatch only handles custom tools defined in the factory
+                        module_logger.info(f"Dispatching tool '{function_name}' (ID: {tool_call_id})")
                         tool_result_str = self.tool_factory.dispatch_tool(function_name, function_args_str)
-                        module_logger.info(f"Custom tool {function_name} result string: {tool_result_str[:200]}...")
+                        # module_logger.debug(f"Tool '{function_name}' result snippet: {tool_result_str[:100]}...")
 
                         if function_name == "list_products":
                              last_list_products_result_content = tool_result_str
 
-                        tool_outputs.append({
-                            "role": "tool", "tool_call_id": tool_call_id, "name": function_name,
-                            "content": tool_result_str })
-
+                        tool_outputs.append({ "role": "tool", "tool_call_id": tool_call_id, "name": function_name, "content": tool_result_str })
                     except Exception as e:
-                         module_logger.error(f"Error dispatching/executing custom tool {function_name} via factory: {e}\n{traceback.format_exc()}")
-                         tool_outputs.append({
-                             "role": "tool", "tool_call_id": tool_call_id, "name": function_name,
-                             "content": json.dumps({"error": f"Failed to execute custom tool {function_name}", "details": str(e)})
-                         })
-                         if function_name == "list_products":
-                             last_list_products_result_content = None # Reset on error
-
+                         module_logger.error(f"Error dispatching/executing tool '{function_name}' (ID: {tool_call_id}): {e}", exc_info=True) # Show traceback for tool errors
+                         tool_outputs.append({ "role": "tool", "tool_call_id": tool_call_id, "name": function_name, "content": json.dumps({"error": f"Failed to execute tool {function_name}", "details": str(e)})})
+                         if function_name == "list_products": last_list_products_result_content = None
 
                 current_messages.extend(tool_outputs)
                 iteration_count += 1
-                # Reset check state (already done at start of loop)
 
-            # --- Max Iterations Reached ---
+            # Max Iterations Reached
             if iteration_count >= max_tool_iterations:
                  module_logger.warning(f"Max tool iterations ({max_tool_iterations}) reached.")
-                 # Try to find the last assistant message with content
                  last_assistant_message = next((msg for msg in reversed(current_messages) if msg.get("role") == 'assistant' and msg.get("content")), None)
                  if last_assistant_message:
-                      # Check if the last message indicates web search was used (via annotations)
                       final_content = last_assistant_message["content"]
-                      # Add annotation check here if needed, similar to the check after API call
+                      if expect_json:
+                          is_valid_json_string = False
+                          if isinstance(final_content, str):
+                              try: json.loads(final_content); is_valid_json_string = True
+                              except json.JSONDecodeError: pass
+                          if not is_valid_json_string:
+                               module_logger.warning(f"Max iterations reached. Expected JSON, but last assistant content was not valid JSON.")
+                               module_logger.debug(f"Non-JSON content snippet: {str(final_content)[:200]}...")
                       return final_content + f"\n[Warning: Max tool iterations ({max_tool_iterations}) reached]"
                  else:
-                     # Fallback if no final assistant content found
-                     last_tool_message = next((msg for msg in reversed(current_messages) if msg.get("role") == 'tool'), None)
-                     if last_tool_message:
-                         return f"[Error: Max tool iterations reached. Last tool result: {str(last_tool_message.get('content'))[:200]}...]"
-                     else:
-                         return "[Error: Max tool iterations reached without final assistant content or tool results.]"
+                     return f"[Error: Max tool iterations ({max_tool_iterations}) reached without final assistant content.]"
 
         except asyncio.TimeoutError:
-            # This catches timeouts set around the completion_task
-            module_logger.error(f"The OpenAI API request timed out after 120 seconds.")
+            module_logger.error(f"The OpenAI API request timed out after 180 seconds.")
             return "[Error: API call timed out]"
+        except BadRequestError as e: # Catch specific OpenAI errors
+             error_details = e.body.get('message', str(e)) if hasattr(e, 'body') and isinstance(e.body, dict) else str(e)
+             if "context_length_exceeded" in error_details:
+                 module_logger.error(f"BadRequestError: Context length exceeded. Details: {error_details}", exc_info=False)
+                 return "[Error: Context length exceeded]"
+             elif "response_format" in error_details and expect_json:
+                  module_logger.error(f"BadRequestError related to JSON response format: {error_details}. Model may have failed to produce valid JSON.", exc_info=False)
+                  return "[Error: Model failed to generate valid JSON]"
+             else:
+                 module_logger.error(f"BadRequestError during generation: {error_details}", exc_info=True)
+                 return f"[Error: OpenAI API Error - {type(e).__name__}]"
         except Exception as e:
-            module_logger.error(f"An unexpected error occurred during text generation: {e}\n{traceback.format_exc()}")
-            # Attempt to get the last assistant message even on error
+            module_logger.error(f"An unexpected error occurred during text generation: {e}", exc_info=True)
             last_assistant_content = self._find_last_assistant_content(current_messages)
-            error_suffix = f"\n[Error: An unexpected error occurred: {type(e).__name__}]"
-            return (last_assistant_content + error_suffix) if last_assistant_content else f"[Error: An unexpected error occurred: {type(e).__name__}]"
+            error_suffix = f"\n[Error: Unexpected error during generation: {type(e).__name__}]"
+            return (last_assistant_content + error_suffix) if last_assistant_content else error_suffix[1:] # Remove leading newline if no content
 
-        # Should not be reached if logic is correct
         module_logger.error("Generation process ended unexpectedly without returning content.")
         return "[Error: Generation process ended unexpectedly]"
 
