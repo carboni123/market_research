@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>All Calendar Entries</title>
+    {# Link to the main stylesheet #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Optional: Add specific styles for this page if needed */
+        .calendar-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .calendar-list li {
+            background: #f9f9f9;
+            /* Slightly different background for differentiation */
+            border-left: 3px solid #f0ad4e;
+            /* Use a different color indicator, e.g., orange */
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>All Saved Calendar Entries</h1>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('view_summaries') }}">All Summaries</a></li>
+            {# Add other relevant navigation links if necessary #}
+        </ul>
+    </nav>
+
+    <section>
+        <h2>Calendar List</h2>
+        {% if calendars %}
+        <ul class="calendar-list">
+            {# Iterate through the list of calendars passed from the Flask route #}
+            {% for calendar in calendars %}
+            {# Each 'calendar' is expected to be a tuple: (id, calendar_result_json, created_at) #}
+            <li>
+                <span>
+                    {# Display a generic identifier and the creation timestamp #}
+                    <strong>Calendar Entry</strong>
+                    <small>(Created: {{ calendar[2] }})</small> {# Index 2 is created_at #}
+                </span>
+                <div class="actions">
+                    {# Link to view the specific calendar item #}
+                    <a href="{{ url_for('view_calendar', calendar_id=calendar[0]) }}" class="view-link">View Details</a>
+                    {# Index 0 is the id #}
+                    {# Link to download the calendar item as markdown #}
+                    <a href="{{ url_for('download_calendar', calendar_id=calendar[0]) }}" class="download-link">Download
+                        MD</a> {# Index 0 is the id #}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        {# Display message if no calendars are found #}
+        <p>No calendar entries are available in the database.</p>
+        {% endif %}
+    </section>
+
+    <footer>
+        {# Use the context processor to get the current year #}
+        <p>© {{ now.year }} Market Research Project</p>
+    </footer>
+</body>
+
+</html>

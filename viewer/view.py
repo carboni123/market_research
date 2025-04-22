@@ -147,13 +147,11 @@ def view_summary(summary_id):
 
 @app.route('/view/calendar/<int:calendar_id>')
 def view_calendar(calendar_id):
-    user_id = get_current_user_id() # Optional: Check ownership
     calendar_data = db.get_calendar_by_id(calendar_id)
 
     if not calendar_data: # or calendar_data[1] != user_id:
         abort(404, description="Calendar not found or access denied.")
 
-    # ... (rest of the view_calendar function remains the same) ...
     raw_json_string = calendar_data[2]
     created_at = calendar_data[3]
 
@@ -315,13 +313,13 @@ def load_portfolio_from_file():
         return jsonify({"error": "An error occurred while reading the portfolio file."}), 500
 
 
-@app.route('/view_calendar')
+@app.route('/view_calendars')
 def view_calendar_list():
     user_id = get_current_user_id()
     if not user_id: return "User not found.", 404
     calendars = db.get_calendar_results(user_id)
-    # Render a specific template if you want a different layout than index
-    return render_template('view_calendar.html', calendars=calendars)
+    # Render the NEW template specifically for listing calendars
+    return render_template('view_calendars.html', calendars=calendars)
 
 # Optional endpoints to add new summary and calendar entries (for testing/manual input)
 @app.route('/add_summary', methods=['GET', 'POST'])
