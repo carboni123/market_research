@@ -20,24 +20,24 @@ class Config:
         logging.info(f"Using GPT Model: {self.GPT_MODEL}")
 
         # Determine the true project root for resolving relative paths:
-        root_dir = project_root
+        self.project_root = project_root
 
         # --- Cache Database Path ---
         db_rel = os.getenv("DATABASE_PATH")
-        self.CACHE_DB_PATH = os.path.abspath(os.path.join(root_dir, db_rel))
+        self.CACHE_DB_PATH = os.path.abspath(os.path.join(self.project_root, db_rel))
         logging.info(f"Cache Database Path: {self.CACHE_DB_PATH}")
         os.makedirs(os.path.dirname(self.CACHE_DB_PATH), exist_ok=True)
         self.CACHE_EXPIRATION_HOURS = int(os.getenv("CACHE_EXPIRATION_HOURS", "24"))
 
         # --- User Database Path ---
         user_db_rel = os.getenv("USER_DB_PATH")
-        self.USER_DB_PATH = os.path.abspath(os.path.join(root_dir, user_db_rel))
+        self.USER_DB_PATH = os.path.abspath(os.path.join(self.project_root, user_db_rel))
         logging.info(f"User Database Path: {self.USER_DB_PATH}")
         os.makedirs(os.path.dirname(self.USER_DB_PATH), exist_ok=True)
 
         # --- Portfolio File Path ---
         portfolio_rel = os.getenv("PORTFOLIO_PATH")
-        self.PORTFOLIO_PATH = os.path.abspath(os.path.join(root_dir, portfolio_rel))
+        self.PORTFOLIO_PATH = os.path.abspath(os.path.join(self.project_root, portfolio_rel))
         logging.info(f"Portfolio Path: {self.PORTFOLIO_PATH}")
         os.makedirs(os.path.dirname(self.PORTFOLIO_PATH), exist_ok=True)
 

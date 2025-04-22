@@ -3,7 +3,7 @@ import os
 import sys
 import logging
 from datetime import datetime, timezone
-from flask import Flask, Response, render_template, request, redirect, url_for, abort
+from flask import Flask, Response, render_template, request, redirect, url_for, abort, jsonify
 import mistune
 
 # --- Setup Project Paths ---
@@ -14,15 +14,9 @@ if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)
 
 # --- Import Core Components ---
-try:
-    from market_research.core.user_database import UserDatabase
-    # Adjust import path based on calendar_parser.py location
-    from market_research.core.calendar_parser import SummaryParser, CalendarParser
-    from market_research.config import config # Import config to get DB path if needed
-except ImportError as e:
-    logging.error(f"Error importing project modules: {e}")
-    logging.error(f"BASE_DIR: {BASE_DIR}, SRC_PATH: {SRC_PATH}")
-    sys.exit(f"Failed to import necessary modules. Check PYTHONPATH and file structure. Error: {e}")
+from market_research.core.user_database import UserDatabase
+from market_research.core.calendar_parser import SummaryParser, CalendarParser
+from market_research.config import config
 
 # --- Flask App Setup ---
 app = Flask(__name__)
@@ -59,13 +53,62 @@ def inject_now():
 def index():
     user_id = get_current_user_id()
     if not user_id:
-         return "User 'alice' not found or could not be created. Cannot display data.", 500
+         # Handle user not found appropriately (e.g., redirect to login or show error)
+         # For now, returning an error message:
+         return "Error: Default user 'alice' not found or could not be created. Cannot display data.", 500
 
-    # Fetch results (now including ID as the first element)
-    summaries = db.get_summary_results(user_id)
+    # --- Fetch ONLY Analysis Summaries for Home Page ---
+    # The get_summary_results method allows filtering by type
+    analysis_summaries = db.get_summary_results(user_id, summary_type='analysis')
+    logging.debug(f"Fetched {len(analysis_summaries)} analysis summaries for index page.")
+
+    # --- Fetch All Calendar Results ---
     calendars = db.get_calendar_results(user_id)
-    # Pass user_id for links in template if needed elsewhere
-    return render_template('index.html', summaries=summaries, calendars=calendars, user_id=user_id)
+    logging.debug(f"Fetched {len(calendars)} calendars for index page.")
+
+    # Pass the filtered summaries and all calendars to the template
+    return render_template('index.html',
+                           analysis_summaries=analysis_summaries, # Use new variable name
+                           calendars=calendars,
+                           user_id=user_id) # Pass user_id if needed by links
+
+# --- Route for displaying ALL summaries ---
+@app.route('/view_summaries')
+def view_summaries():
+    user_id = get_current_user_id()
+    if not user_id: return "User not found.", 404
+
+    # Fetch ALL summary results for this page
+    # Original format: (id, type, keyword, text, timestamp)
+    all_summaries_raw = db.get_summary_results(user_id)
+    logging.debug(f"Fetched {len(all_summaries_raw)} total summaries for view_summaries page.")
+
+    # --- Pre-process summaries to add extracted date ---
+    processed_summaries = []
+    for summary_tuple in all_summaries_raw:
+        try:
+            # Extract date from timestamp (index 4)
+            raw_timestamp = summary_tuple[4]
+            # Add basic check for string type and length
+            if isinstance(raw_timestamp, str) and len(raw_timestamp) >= 10:
+                extracted_date = raw_timestamp[:10] # YYYY-MM-DD
+            else:
+                extracted_date = "Unknown Date" # Fallback for unexpected format
+
+            # Create a new tuple with the extracted date added at the end
+            # New format: (id, type, keyword, text, timestamp, date_only)
+            processed_tuple = summary_tuple + (extracted_date,)
+            processed_summaries.append(processed_tuple)
+
+        except IndexError:
+             logging.warning(f"Could not process summary tuple (IndexError): {summary_tuple}")
+             # Optionally skip or add a placeholder
+        except Exception as e:
+            logging.error(f"Error processing summary tuple {summary_tuple[0] if summary_tuple else 'N/A'}: {e}", exc_info=True)
+            # Optionally skip or add a placeholder
+
+    # Pass the processed list (with the extra date element) to the template
+    return render_template('view_summaries.html', summaries=processed_summaries)
 
 # --- Routes for Viewing Specific Items ---
 
@@ -200,32 +243,77 @@ def add_user():
             return render_template('add_user.html', error=error_msg)
     return render_template('add_user.html') # Display form
 
-@app.route('/portfolio') # Removed user_id from URL, get from helper
-def portfolio():
+# --- Portfolio Routes ---
+
+@app.route('/portfolio', methods=['GET']) # Renamed route for clarity, handles only GET
+def view_portfolio():
     user_id = get_current_user_id()
     if not user_id:
-         return "User not found.", 404
-    portfolio_info = db.get_portfolio(user_id)
-    portfolio_data = portfolio_info[0] if portfolio_info else ""
-    # Pass user_id for form submission if needed, though not strictly necessary if using get_current_user_id() on POST
-    return render_template('portfolio.html', portfolio_data=portfolio_data, user_id=user_id)
+        abort(404, "User not found.") # Use abort for cleaner error handling
 
-@app.route('/update_portfolio', methods=['POST']) # Specific route for POST
+    portfolio_info = db.get_portfolio(user_id)
+    portfolio_data = "" # Default to empty string
+    last_updated = None
+    if portfolio_info:
+        portfolio_data = portfolio_info[0] # The text data
+        last_updated = portfolio_info[1] # The timestamp
+
+    # Pass data to the template
+    return render_template('portfolio.html',
+                           portfolio_data=portfolio_data,
+                           last_updated=last_updated,
+                           user_id=user_id) # Pass user_id if forms need it indirectly
+
+@app.route('/update_portfolio', methods=['POST']) # Dedicated route for POST action
 def update_portfolio():
     user_id = get_current_user_id()
     if not user_id:
-         return "User not found.", 404
-    portfolio_data = request.form['portfolio_data']
-    db.update_portfolio(user_id, portfolio_data)
-    return redirect(url_for('portfolio')) # Redirect back to portfolio view
+        abort(403, "Cannot update portfolio: User not found.") # 403 Forbidden might be suitable
 
-@app.route('/view_summaries')
-def view_summaries():
+    # Get data from the form submitted to this endpoint
+    portfolio_data_from_form = request.form.get('portfolio_data', '') # Use .get for safety
+
+    # Update the database
+    try:
+        db.update_portfolio(user_id, portfolio_data_from_form)
+        logging.info(f"Portfolio updated successfully for user_id {user_id}")
+    except Exception as e:
+        logging.error(f"Error updating portfolio for user_id {user_id}: {e}")
+        # Optionally: add flash message for user feedback
+        abort(500, "Failed to update portfolio in database.")
+
+    # Redirect back to the portfolio view page (Post/Redirect/Get pattern)
+    return redirect(url_for('view_portfolio'))
+
+@app.route('/load_portfolio_from_file', methods=['GET'])
+def load_portfolio_from_file():
+    # Security Note: In a real app, ensure only authorized users can trigger this,
+    # even if it reads a shared file, to prevent information disclosure if the
+    # file path were somehow dynamic or user-controlled.
     user_id = get_current_user_id()
-    if not user_id: return "User not found.", 404
-    summaries = db.get_summary_results(user_id)
-    # Render a specific template if you want a different layout than index
-    return render_template('view_summaries.html', summaries=summaries)
+    if not user_id:
+         # Even though we might not strictly need user_id to read the file,
+         # it's good practice to ensure a valid user session triggers actions.
+         return jsonify({"error": "User not found or unauthorized"}), 403
+
+    file_path = config.PORTFOLIO_PATH
+    try:
+        logging.info(f"Attempting to load portfolio from file: {file_path}")
+        # Ensure the file exists before trying to open
+        if not os.path.exists(file_path):
+             logging.warning(f"Portfolio file not found at {file_path}")
+             return jsonify({"error": "Portfolio file not found on server."}), 404
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            file_content = f.read()
+        logging.info(f"Successfully loaded content from {file_path}")
+        # Return the content in a JSON structure for easy JS handling
+        return jsonify({"portfolio_text": file_content})
+
+    except Exception as e:
+        logging.error(f"Error reading portfolio file {file_path}: {e}", exc_info=True)
+        return jsonify({"error": "An error occurred while reading the portfolio file."}), 500
+
 
 @app.route('/view_calendar')
 def view_calendar_list():

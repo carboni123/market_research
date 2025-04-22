@@ -11,7 +11,7 @@
     nav { background-color: #444; padding: 8px; text-align: center; margin-bottom: 20px; }
     nav ul { list-style: none; padding: 0; margin: 0; }
     nav li { display: inline; margin: 0 15px; }
-    nav a { color: #fff; text-decoration: none; font-weight: bold; }
+    nav a { color: #333; text-decoration: none; font-weight: bold; }
     nav a:hover { text-decoration: underline; }
     section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     h1, h2 { color: #333; }
@@ -24,7 +24,7 @@
     .download-link { background-color: #337ab7; color: white; }
     .view-link:hover { background-color: #4cae4c; }
     .download-link:hover { background-color: #286090; }
-    p { color: #555; }
+    p { color: #eee; }
   </style>
 </head>
 <body>
@@ -36,23 +36,24 @@
     <ul>
       <li><a href="{{ url_for('index') }}">Home</a></li>
       <li><a href="{{ url_for('add_user') }}">Add User</a></li>
-      <li><a href="{{ url_for('portfolio') }}">View Portfolio</a></li>
+      <li><a href="{{ url_for('view_portfolio') }}">View Portfolio</a></li>
       <li><a href="{{ url_for('view_summaries') }}">All Summaries</a></li>
       <li><a href="{{ url_for('view_calendar_list') }}">All Calendars</a></li>
-      <li><a href="{{ url_for('add_summary') }}">+ Add Summary</a></li>
-      <li><a href="{{ url_for('add_calendar') }}">+ Add Calendar</a></li>
     </ul>
   </nav>
 
   <section>
-    <h2>Latest User Summaries</h2>
-    {% if summaries %}
+    {# Changed heading and loop variable #}
+    <h2>Latest Analysis Reports</h2>
+    {% if analysis_summaries %} {# Check the new variable #}
       <ul>
-        {% for summary in summaries %}
+        {# Loop over the analysis_summaries variable passed from view.py #}
+        {% for summary in analysis_summaries %}
           <li>
             {# Assuming summary format: (id, summary_type, keyword, summary_text, created_at) #}
             <span>
-                <strong>{{ summary[1] | capitalize }} - {{ summary[2] }}</strong>
+                {# Display keyword ('aggregate') or just the type #}
+                <strong>Analysis Report</strong>
                 <small> (Created: {{ summary[4] }})</small>
             </span>
             <div class="actions">
@@ -63,17 +64,17 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>No summaries available yet. Run the main analysis script.</p>
+      <p>No analysis reports available yet. Run the main analysis script.</p>
     {% endif %}
   </section>
 
   <section>
     <h2>Latest Calendar Events</h2>
+    {# This calendar section remains the same #}
     {% if calendars %}
       <ul>
         {% for calendar in calendars %}
          <li>
-            {# Assuming calendar format: (id, calendar_result_text, created_at) #}
             <span>
                 <strong>Calendar Entry</strong>
                 <small> (Created: {{ calendar[2] }})</small>

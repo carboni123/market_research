@@ -1,12 +1,12 @@
+{# viewer/templates/view_summaries.html #}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <title>All Summaries</title>
-    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">  -->
+    <title>All Individual Summaries</title>
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> -->
     <style>
-        /* Add styles similar to index.html or from style.css */
         body {
             font-family: sans-serif;
             margin: 20px;
@@ -40,7 +40,7 @@
         }
 
         nav a {
-            color: #fff;
+            color: #333;
             text-decoration: none;
             font-weight: bold;
         }
@@ -63,6 +63,20 @@
             padding: 0;
         }
 
+        /* Style for the date headers */
+        .date-header {
+            margin-top: 25px;
+            /* Add space above the header */
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #ccc;
+            /* Separator line */
+            color: #555;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        /* Style for the list items */
         li {
             background: #eee;
             margin-bottom: 10px;
@@ -71,6 +85,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-left: 3px solid #5cb85c;
+            /* Add a small color indicator */
         }
 
         li span {
@@ -109,23 +125,37 @@
 
 <body>
     <header>
-        <h1>All User Summaries</h1>
+        <h1>All Individual Keyword Summaries</h1>
     </header>
     <nav>
         <ul>
             <li><a href="{{ url_for('index') }}">Home</a></li>
-            <li><a href="{{ url_for('view_calendar') }}">All Calendars</a></li>
-            <li><a href="{{ url_for('add_summary') }}">+ Add Summary</a></li>
         </ul>
     </nav>
     <section>
         {% if summaries %}
+        {# mutable namespace to track the last date seen #}
+        {% set ns = namespace(last_date=None, started=False) %}
+
+        {% for summary in summaries %}
+        {% if summary[1] != 'analysis' %}
+        {% set current_date = summary[4][:10] %}
+
+        {# whenever the date changes, close the previous list (if any), print header & open a new list #}
+        {% if current_date != ns.last_date %}
+        {% if ns.started %}
+        </ul>
+        {% endif %}
+        <h3 class="date-header">{{ current_date }}</h3>
         <ul>
-            {% for summary in summaries %}
+            {% set ns.started = True %}
+            {% set ns.last_date = current_date %}
+            {% endif %}
+
             <li>
                 <span>
-                    <strong>{{ summary[1] | capitalize }} - {{ summary[2] }}</strong>
-                    <small> (Created: {{ summary[4] }})</small>
+                    <strong>{{ summary[1] | capitalize }} – {{ summary[2] }}</strong>
+                    <small>(Time: {{ summary[4][11:] }})</small>
                 </span>
                 <div class="actions">
                     <a href="{{ url_for('view_summary', summary_id=summary[0]) }}" class="view-link">View</a>
@@ -133,15 +163,21 @@
                         MD</a>
                 </div>
             </li>
+            {% endif %}
             {% endfor %}
+
+            {# close the very last list #}
+            {% if ns.started %}
         </ul>
+        {% endif %}
         {% else %}
-        <p>No summaries available.</p>
+        <p>No individual summaries available.</p>
         {% endif %}
     </section>
     <footer>
         <p>© {{ now.year }} Market Research Project</p>
     </footer>
+    {# Ensure 'now' context processor is active for the footer #}
 </body>
 
 </html>
